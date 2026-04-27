@@ -701,7 +701,7 @@ function renderAssets(){
       <td>${esc(it.elem.label||'(설명 없음)')}</td>
       <td class="small">${it.elem.assetPath?`<a href="${esc(it.elem.assetPath)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:none">📁 열기</a>`:'<span class="muted">—</span>'}</td>
       <td class="small">${(it.elem.ixs||[]).length?(it.elem.ixs||[]).map(ix=>`<span class="ix-inline">⚡${esc(ix.action||'')}${ix.status?` <span class="ix-status ${IX_STATUS_CLS[ix.status]}">${ix.status}</span>`:''}</span>`).join(' '):'<span class="muted">—</span>'}</td>
-      <td>${it.elem.done?'<span class="flag" style="background:var(--success-soft);color:#065f46">완료</span>':'<span class="flag flag-보류">미완</span>'}</td>
+      <td><label class="check-item" onclick="event.stopPropagation()" style="padding:0"><input type="checkbox" data-act="toggle-elem-done" data-pid="${it.page.id}" data-sid="${it.section.id}" data-eid="${it.elem.id}" ${it.elem.done?'checked':''}/><span class="small">완료</span></label></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
   return h;
@@ -721,8 +721,9 @@ function renderInteractions(){
   items.forEach(it=>{
     const ix=it.ix,params=ix.params||{},aFields=ACTION_FIELDS[ix.action]||[];
     const filled=aFields.filter(f=>{const v=params[f.key];return f.type==='checkbox'?!!v:v!==undefined&&v!==''&&v!==null;});
+    const stCls=ix.status?IX_STATUS_CLS[ix.status]:'ix-status-empty';
     h+=`<div class="ix-card" data-page="${it.page.id}" data-section="${it.section.id}" data-status="${esc(ix.status||'')}" data-trigger="${esc(ix.trigger||'')}" data-action="${esc(ix.action||'')}" data-search="${esc((it.elem.label+' '+(ix.memo||'')).toLowerCase())}">
-      <div class="ix-card-head"><div><div class="ix-card-loc">${esc(it.page.name)} › ${esc(it.section.name)}</div><div class="ix-card-label">${it.id?`<span class="elem-id" style="margin-right:6px">${it.id}</span>`:''}${esc(it.elem.label||'(설명 없음)')}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${ix.status?`<span class="ix-status ${IX_STATUS_CLS[ix.status]}">${ix.status}</span>`:'<span class="ix-status ix-status-empty">미정</span>'}<button class="btn btn-ghost btn-sm" data-act="goto-ix" data-page="${it.page.id}" data-section="${it.section.id}" data-eid="${it.elem.id}" data-iid="${ix.id}">편집</button></div></div>
+      <div class="ix-card-head"><div><div class="ix-card-loc">${esc(it.page.name)} › ${esc(it.section.name)}</div><div class="ix-card-label">${it.id?`<span class="elem-id" style="margin-right:6px">${it.id}</span>`:''}${esc(it.elem.label||'(설명 없음)')}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select class="ix-status-select ${stCls}" data-act="set-ix-status" data-pid="${it.page.id}" data-sid="${it.section.id}" data-eid="${it.elem.id}" data-iid="${ix.id}"><option value="" ${!ix.status?'selected':''}>상태 미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ix.status===st?'selected':''}>${st}</option>`).join('')}</select><button class="btn btn-ghost btn-sm" data-act="goto-ix" data-page="${it.page.id}" data-section="${it.section.id}" data-eid="${it.elem.id}" data-iid="${ix.id}">편집</button></div></div>
       <dl class="ix-summary-grid">
         ${ix.trigger?`<dt>트리거</dt><dd>${esc(ix.trigger)}</dd>`:''}
         ${ix.action?`<dt>동작</dt><dd><strong>${esc(ix.action)}</strong></dd>`:''}
