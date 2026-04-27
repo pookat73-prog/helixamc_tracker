@@ -100,6 +100,16 @@
   .flag-보류{background:#f3f4f6;color:#374151}
   .flag-검토{background:#fef9c3;color:#854d0e}
   .flag-이슈{background:var(--danger-soft);color:#991b1b}
+  .ix-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap}
+  .ix-status-doing{background:#fef3c7;color:#92400e}
+  .ix-status-impl{background:#dbeafe;color:#1e40af}
+  .ix-status-verified{background:#d1fae5;color:#065f46}
+  .ix-status-empty{background:var(--border-soft);color:var(--text-muted)}
+  .ix-status-select{font-size:12px;font-weight:600;padding:3px 24px 3px 10px;border-radius:99px;border:1px solid var(--border);cursor:pointer}
+  .ix-status-select.ix-status-doing{border-color:#f59e0b}
+  .ix-status-select.ix-status-impl{border-color:#3b82f6}
+  .ix-status-select.ix-status-verified{border-color:#10b981}
+  .ix-inline{display:inline-flex;align-items:center;gap:4px;color:var(--text-muted);margin-right:8px}
   .flag-picker{display:flex;flex-wrap:wrap;gap:6px}
   .flag-pill{font-size:11px;padding:3px 10px;border-radius:99px;border:1px solid var(--border);color:var(--text-muted);background:#fff;cursor:pointer}
   .flag-pill.on{border-color:transparent}
@@ -286,6 +296,10 @@ const TRIGGERS = ['스크롤 진입','자동 (페이지 로드)','클릭','호�
 const ACTIONS = ['페이드인','페이드아웃','슬라이드인','슬라이드아웃','스케일','회전','패럴랙스','모핑','비디오 재생','모달 오픈','네비게이션','커스텀'];
 const EASINGS = ['ease','ease-in','ease-out','ease-in-out','linear','spring','bounce','커스텀'];
 const DEVICES = ['둘다','PC만','모바일만'];
+const IX_STATUSES = ['구현중','구현 완료','점검완료'];
+const IX_STATUS_CLS = {'구현중':'ix-status-doing','구현 완료':'ix-status-impl','점검완료':'ix-status-verified'};
+const IX_STATUS_DONE = new Set(['구현 완료','점검완료']);
+function ixIsDone(ix){return IX_STATUS_DONE.has(ix.status);}
 const ACTION_FIELDS = {
   '페이드인':[{key:'startOpacity',label:'시작 투명도',type:'number',placeholder:'0',step:'0.05'},{key:'endOpacity',label:'끝 투명도',type:'number',placeholder:'1',step:'0.05'}],
   '페이드아웃':[{key:'startOpacity',label:'시작 투명도',type:'number',placeholder:'1',step:'0.05'},{key:'endOpacity',label:'끝 투명도',type:'number',placeholder:'0',step:'0.05'}],
@@ -334,7 +348,13 @@ async function load(){
           e.ixs = (e.ix && (e.ix.on||e.ix.action)) ? [{...e.ix,id:e.ix.id||uid()}] : [];
         }
         delete e.ix;
-        e.ixs.forEach(ix=>{if(!ix.id)ix.id=uid();if(!ix.params)ix.params={};delete ix.on;});
+        e.ixs.forEach(ix=>{
+          if(!ix.id)ix.id=uid();
+          if(!ix.params)ix.params={};
+          delete ix.on;
+          if(ix.status===undefined) ix.status=ix.done?'구현 완료':'';
+          delete ix.done;
+        });
       });
     });
   });
@@ -351,8 +371,8 @@ function calcSection(s){
   let total=0,done=0;
   if(s.stages) Object.values(s.stages).forEach(v=>{total++;if(v)done++;});
   (s.elements||[]).forEach(e=>{
-    if(isAsset(e)){total++;if(e.done)done++;}
-    (e.ixs||[]).forEach(ix=>{total++;if(ix.done)done++;});
+    total++;if(e.done)done++;
+    (e.ixs||[]).forEach(ix=>{total++;if(ixIsDone(ix))done++;});
   });
   return{total,done,pct:total?Math.round(done/total*100):0};
 }
@@ -430,7 +450,7 @@ function renderDashboard(){
     secCount+=(p.sections||[]).length;
     (p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{
       if(isAsset(e)){assetCount++;if(e.done)assetDone++;}
-      (e.ixs||[]).forEach(ix=>{ixCount++;if(ix.done)ixDone++;});
+      (e.ixs||[]).forEach(ix=>{ixCount++;if(ixIsDone(ix))ixDone++;});
     }));
   });
   const dates=state.meta.dates||{};
@@ -557,7 +577,7 @@ function renderSection(p,s,si){
 
 function renderElem(p,s,e,ei){
   const ixs=e.ixs||[],ixCount=ixs.length,panelOpen=openIxPanels.has(e.id),asset=isAsset(e);
-  const allDone=ixCount>0&&ixs.every(ix=>ix.done);
+  const allDone=ixCount>0&&ixs.every(ixIsDone);
   const ixBtnCls=ixCount===0?'':(allDone?'done':'active');
   const id=asset?elemDisplayId(p,s,e):'';
   const typeLabel=e.type==='text'?'유닛':e.type==='image'?'이미지/영상':'오브젝트';
@@ -568,7 +588,7 @@ function renderElem(p,s,e,ei){
       ${id?`<span class="elem-id">${id}</span>`:''}
       <span class="elem-type-badge ${typeCls}">${typeLabel}</span>
       <input class="elem-label" data-act="edit-elem-label" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" value="${esc(e.label||'')}" placeholder="${ph}"/>
-      ${asset?`<label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-elem-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${e.done?'checked':''}/><span class="small">완료</span></label>`:''}
+      <label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-elem-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${e.done?'checked':''}/><span class="small">완료</span></label>
       <div class="elem-actions">
         <button class="ix-toggle-btn ${ixBtnCls}" data-act="toggle-ix-panel" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">⚡${ixCount===0?'추가':ixCount}</button>
         <div class="reorder">
@@ -594,7 +614,8 @@ function renderIxList(p,s,e){
 
 function renderIxCard(p,s,e,ix,i){
   const editing=editingIx.has(ix.id);
-  let h=`<div class="ix-panel open"><div class="ix-panel-header"><span style="font-weight:600">⚡ 인터랙션 ${i+1}${ix.action?` · ${esc(ix.action)}`:''}</span><div style="margin-left:auto;display:flex;gap:6px;align-items:center"><label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-ix-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}" ${ix.done?'checked':''}/><span class="small">완료</span></label>${!editing?`<button class="btn btn-ghost btn-sm" data-act="ix-edit" data-iid="${ix.id}">수정</button>`:''}<button class="btn btn-danger btn-sm" data-act="ix-delete" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}">삭제</button></div></div>`;
+  const stCls=ix.status?IX_STATUS_CLS[ix.status]:'ix-status-empty';
+  let h=`<div class="ix-panel open"><div class="ix-panel-header"><span style="font-weight:600">⚡ 인터랙션 ${i+1}${ix.action?` · ${esc(ix.action)}`:''}</span><div style="margin-left:auto;display:flex;gap:6px;align-items:center"><select class="ix-status-select ${stCls}" data-act="set-ix-status" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}"><option value="" ${!ix.status?'selected':''}>상태 미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ix.status===st?'selected':''}>${st}</option>`).join('')}</select>${!editing?`<button class="btn btn-ghost btn-sm" data-act="ix-edit" data-iid="${ix.id}">수정</button>`:''}<button class="btn btn-danger btn-sm" data-act="ix-delete" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}">삭제</button></div></div>`;
   h+=editing?renderIxForm(p,s,e,ix):renderIxSummary(ix);
   return h+`</div>`;
 }
@@ -679,7 +700,7 @@ function renderAssets(){
       <td class="muted small">${esc(it.page.name)} › ${esc(it.section.name)}</td>
       <td>${esc(it.elem.label||'(설명 없음)')}</td>
       <td class="small">${it.elem.assetPath?`<a href="${esc(it.elem.assetPath)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:none">📁 열기</a>`:'<span class="muted">—</span>'}</td>
-      <td class="small">${(it.elem.ixs||[]).length?(it.elem.ixs||[]).map(ix=>`<span class="muted">⚡${esc(ix.action||'')}${ix.done?' ✓':''}</span>`).join(' '):'<span class="muted">—</span>'}</td>
+      <td class="small">${(it.elem.ixs||[]).length?(it.elem.ixs||[]).map(ix=>`<span class="ix-inline">⚡${esc(ix.action||'')}${ix.status?` <span class="ix-status ${IX_STATUS_CLS[ix.status]}">${ix.status}</span>`:''}</span>`).join(' '):'<span class="muted">—</span>'}</td>
       <td>${it.elem.done?'<span class="flag" style="background:var(--success-soft);color:#065f46">완료</span>':'<span class="flag flag-보류">미완</span>'}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
@@ -692,7 +713,7 @@ function renderInteractions(){
   let h=`<div class="page-head"><div><h2>인터랙션 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">⚡</div><div class="empty-msg">인터랙션이 없어요.</div></div>`;
   h+=`<div class="filter-bar">
-    <select id="ix-filter-status"><option value="all">전체</option><option value="done">완료</option><option value="undone">미완</option></select>
+    <select id="ix-filter-status"><option value="all">전체</option><option value="">미정</option>${IX_STATUSES.map(st=>`<option value="${st}">${st}</option>`).join('')}</select>
     <select id="ix-filter-trigger"><option value="all">전체 트리거</option>${TRIGGERS.map(t=>`<option>${t}</option>`).join('')}</select>
     <select id="ix-filter-action"><option value="all">전체 동작</option>${ACTIONS.map(t=>`<option>${t}</option>`).join('')}</select>
     <input id="ix-filter-search" placeholder="검색..." style="flex:1;min-width:160px"/>
@@ -700,8 +721,8 @@ function renderInteractions(){
   items.forEach(it=>{
     const ix=it.ix,params=ix.params||{},aFields=ACTION_FIELDS[ix.action]||[];
     const filled=aFields.filter(f=>{const v=params[f.key];return f.type==='checkbox'?!!v:v!==undefined&&v!==''&&v!==null;});
-    h+=`<div class="ix-card" data-page="${it.page.id}" data-section="${it.section.id}" data-status="${ix.done?'done':'undone'}" data-trigger="${esc(ix.trigger||'')}" data-action="${esc(ix.action||'')}" data-search="${esc((it.elem.label+' '+(ix.memo||'')).toLowerCase())}">
-      <div class="ix-card-head"><div><div class="ix-card-loc">${esc(it.page.name)} › ${esc(it.section.name)}</div><div class="ix-card-label">${it.id?`<span class="elem-id" style="margin-right:6px">${it.id}</span>`:''}${esc(it.elem.label||'(설명 없음)')}</div></div>${ix.done?'<span class="flag" style="background:var(--success-soft);color:#065f46">✓ 완료</span>':`<button class="btn btn-ghost btn-sm" data-act="goto-ix" data-page="${it.page.id}" data-section="${it.section.id}" data-eid="${it.elem.id}" data-iid="${ix.id}">편집</button>`}</div>
+    h+=`<div class="ix-card" data-page="${it.page.id}" data-section="${it.section.id}" data-status="${esc(ix.status||'')}" data-trigger="${esc(ix.trigger||'')}" data-action="${esc(ix.action||'')}" data-search="${esc((it.elem.label+' '+(ix.memo||'')).toLowerCase())}">
+      <div class="ix-card-head"><div><div class="ix-card-loc">${esc(it.page.name)} › ${esc(it.section.name)}</div><div class="ix-card-label">${it.id?`<span class="elem-id" style="margin-right:6px">${it.id}</span>`:''}${esc(it.elem.label||'(설명 없음)')}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${ix.status?`<span class="ix-status ${IX_STATUS_CLS[ix.status]}">${ix.status}</span>`:'<span class="ix-status ix-status-empty">미정</span>'}<button class="btn btn-ghost btn-sm" data-act="goto-ix" data-page="${it.page.id}" data-section="${it.section.id}" data-eid="${it.elem.id}" data-iid="${ix.id}">편집</button></div></div>
       <dl class="ix-summary-grid">
         ${ix.trigger?`<dt>트리거</dt><dd>${esc(ix.trigger)}</dd>`:''}
         ${ix.action?`<dt>동작</dt><dd><strong>${esc(ix.action)}</strong></dd>`:''}
@@ -815,7 +836,7 @@ document.addEventListener('change',ev=>{
   if(act==='toggle-page-check'){const p=findPage(t.dataset.id);if(!p)return;p.checks=p.checks||{};p.checks[t.dataset.key]=t.checked;save();render();return;}
   if(act==='toggle-section-stage'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.stages=s.stages||{};s.stages[t.dataset.key]=t.checked;save();render();return;}
   if(act==='toggle-elem-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.done=t.checked;save();render();return;}
-  if(act==='toggle-ix-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;const ix=(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(!ix)return;ix.done=t.checked;save();render();return;}
+  if(act==='set-ix-status'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(!ix)return;ix.status=t.value;save();render();return;}
   if(act==='edit-page-release'){const p=findPage(t.dataset.id);if(!p)return;p.release=t.value;save();return;}
   if(act==='set-meta'){state.meta[t.dataset.key]=t.value;save();render();return;}
   if(act==='set-stage-date'){const idx=parseInt(t.dataset.idx),name=state.meta.stages&&state.meta.stages[idx];if(!name)return;state.meta.dates=state.meta.dates||{};if(t.value)state.meta.dates[name]=t.value;else delete state.meta.dates[name];save();render();return;}
