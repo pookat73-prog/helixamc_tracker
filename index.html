@@ -481,7 +481,7 @@ function renderPageDetail(p){
     <div style="flex:1;min-width:200px">
       <input class="page-name-input" data-act="edit-page-name" data-id="${p.id}" value="${esc(p.name)}" placeholder="페이지 이름"/>
       <div class="meta-row">
-        <label>약자</label><input class="abbr-input" data-act="edit-page-abbr" data-id="${p.id}" value="${esc(p.abbr||'')}" placeholder="MAIN" maxlength="8"/>
+        <label>약자</label><input class="abbr-input" inputmode="latin" autocapitalize="characters" lang="en" data-act="edit-page-abbr" data-id="${p.id}" value="${esc(p.abbr||'')}" placeholder="MAIN" maxlength="8"/>
         <label style="margin-left:8px">출시</label>
         <select data-act="edit-page-release" data-id="${p.id}"><option value="">미지정</option>${stages.map(r=>`<option value="${esc(r)}" ${p.release===r?'selected':''}>${esc(r)}</option>`).join('')}</select>
       </div>
@@ -505,7 +505,7 @@ function renderSection(p,s,si){
     <div class="section-head" data-act="toggle-section" data-id="${s.id}">
       <span class="section-toggle ${open?'open':''}">▶</span>
       <div class="section-name" onclick="event.stopPropagation()"><input data-act="edit-section-name" data-pid="${p.id}" data-sid="${s.id}" value="${esc(s.name)}" placeholder="섹션 이름"/></div>
-      <input class="abbr-input" onclick="event.stopPropagation()" data-act="edit-section-abbr" data-pid="${p.id}" data-sid="${s.id}" value="${esc(s.abbr||'')}" placeholder="HERO" maxlength="8"/>
+      <input class="abbr-input" inputmode="latin" autocapitalize="characters" lang="en" onclick="event.stopPropagation()" data-act="edit-section-abbr" data-pid="${p.id}" data-sid="${s.id}" value="${esc(s.abbr||'')}" placeholder="HERO" maxlength="8"/>
       <div class="section-progress"><div class="pbar"><div class="pbar-fill ${c.pct===100?'full':''}" style="width:${c.pct}%"></div></div><span style="font-weight:700;color:var(--text)">${c.pct}%</span><span>${c.done}/${c.total}</span></div>
       <div class="reorder" onclick="event.stopPropagation()">
         <button data-act="move-section-up" data-pid="${p.id}" data-sid="${s.id}" ${si===0?'disabled':''}>▲</button>
@@ -789,9 +789,9 @@ document.addEventListener('input',ev=>{
   const t=ev.target.closest('[data-act]');if(!t)return;
   const act=t.dataset.act;
   if(act==='edit-page-name'){const p=findPage(t.dataset.id);if(p)p.name=t.value;}
-  else if(act==='edit-page-abbr'){const p=findPage(t.dataset.id);if(p)p.abbr=t.value.toUpperCase();}
+  else if(act==='edit-page-abbr'){const p=findPage(t.dataset.id);if(p){const v=t.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(v!==t.value)t.value=v;p.abbr=v;}}
   else if(act==='edit-section-name'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(s)s.name=t.value;}
-  else if(act==='edit-section-abbr'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(s)s.abbr=t.value.toUpperCase();}
+  else if(act==='edit-section-abbr'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(s){const v=t.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(v!==t.value)t.value=v;s.abbr=v;}}
   else if(act==='edit-elem-label'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.label=t.value;}
   else if(act==='edit-elem-asset'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.assetPath=t.value;}
   else if(act==='set-ix'){if(t.dataset.key==='action')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix)e.ix[t.dataset.key]=t.value;}
