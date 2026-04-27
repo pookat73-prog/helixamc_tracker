@@ -189,8 +189,9 @@
   .setting-row label{font-weight:500}
   .setting-row .desc{color:var(--text-muted);font-size:12px;margin-top:2px}
   .stage-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-  .stage-item{display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border-radius:var(--r-sm)}
-  .stage-item input{flex:1}
+  .stage-item{display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border-radius:var(--r-sm);flex-wrap:wrap}
+  .stage-item .stage-name-input{flex:1;min-width:120px}
+  .stage-item .stage-date-input{flex:0 0 auto;width:160px}
   .reorder{display:flex;flex-direction:column;gap:0}
   .reorder button{font-size:10px;padding:0 4px;color:var(--text-light);line-height:1;background:transparent;border:none}
   .reorder button:hover{color:var(--text)}
@@ -285,7 +286,7 @@ const ACTION_FIELDS = {
 };
 
 // ============== STATE ==============
-let state = {meta:{가오픈일:'',정식오픈일:'',stages:[...DEFAULT_RELEASES]},pages:[]};
+let state = {meta:{stages:[...DEFAULT_RELEASES],dates:{}},pages:[]};
 let view='dashboard', selPage=null;
 let openSections=new Set(), openIxPanels=new Set(), editingIx=new Set();
 
@@ -297,8 +298,9 @@ async function load(){
   if(!state.pages) state.pages=[];
   if(!state.meta) state.meta={};
   if(!state.meta.stages) state.meta.stages=[...DEFAULT_RELEASES];
-  if(!state.meta.가오픈일) state.meta.가오픈일='';
-  if(!state.meta.정식오픈일) state.meta.정식오픈일='';
+  if(!state.meta.dates) state.meta.dates={};
+  if(state.meta.가오픈일){if(!state.meta.dates['가오픈'])state.meta.dates['가오픈']=state.meta.가오픈일;delete state.meta.가오픈일;}
+  if(state.meta.정식오픈일){if(!state.meta.dates['정식'])state.meta.dates['정식']=state.meta.정식오픈일;delete state.meta.정식오픈일;}
   state.pages.forEach(p=>{
     if(!p.checks) p.checks={};
     PAGE_TASKS.forEach(k=>{if(p.checks[k]===undefined)p.checks[k]=false;});
@@ -379,10 +381,12 @@ function render(){
 }
 
 function renderDDay(){
-  const a=ddayText(state.meta.가오픈일),b=ddayText(state.meta.정식오픈일);
+  const dates=state.meta.dates||{};
   let h='';
-  if(a) h+=`<div class="dday-box"><div class="lbl">가오픈</div><div class="val ${a.past?'dday-past':'dday-num'}">${a.text}</div></div>`;
-  if(b) h+=`<div class="dday-box"><div class="lbl">정식오픈</div><div class="val ${b.past?'dday-past':'dday-num'}">${b.text}</div></div>`;
+  (state.meta.stages||[]).forEach(st=>{
+    const d=ddayText(dates[st]);
+    if(d) h+=`<div class="dday-box"><div class="lbl">${esc(st)}</div><div class="val ${d.past?'dday-past':'dday-num'}">${d.text}</div></div>`;
+  });
   if(!h) h=`<div class="dday-box"><div class="lbl">D-Day 미설정</div><div class="val small muted" style="font-size:12px">설정에서 추가</div></div>`;
   return h;
 }
@@ -402,7 +406,8 @@ function renderDashboard(){
       if(e.ix&&e.ix.on){ixCount++;if(e.ix.done)ixDone++;}
     }));
   });
-  const a=ddayText(state.meta.가오픈일),b=ddayText(state.meta.정식오픈일);
+  const dates=state.meta.dates||{};
+  const stageDdays=(state.meta.stages||[]).map(st=>({stage:st,d:ddayText(dates[st])})).filter(x=>x.d);
   const byStage={};
   (state.meta.stages||[]).forEach(s=>byStage[s]=[]);
   byStage['(미지정)']=[];
@@ -415,10 +420,8 @@ function renderDashboard(){
     <div class="card" style="display:flex;align-items:center;justify-content:center;padding:24px">${donut(all.pct)}</div>
     <div class="card">
       <div class="lbl muted small">D-Day</div>
-      <div style="margin-top:10px">
-        ${a?`<div class="row" style="justify-content:space-between"><span class="muted small">가오픈</span><span style="font-weight:700;color:${a.past?'var(--danger)':'var(--primary)'}">${a.text}</span></div>`:''}
-        ${b?`<div class="row" style="justify-content:space-between;margin-top:8px"><span class="muted small">정식오픈</span><span style="font-weight:700;color:${b.past?'var(--danger)':'var(--primary)'}">${b.text}</span></div>`:''}
-        ${!a&&!b?`<div class="muted small" style="margin-top:8px">설정에서 오픈일을 입력해주세요.</div>`:''}
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+        ${stageDdays.length?stageDdays.map(({stage,d})=>`<div class="row" style="justify-content:space-between"><span class="muted small">${esc(stage)}</span><span style="font-weight:700;color:${d.past?'var(--danger)':'var(--primary)'}">${d.text}</span></div>`).join(''):`<div class="muted small">설정에서 단계별 날짜를 입력해주세요.</div>`}
       </div>
       <div style="margin-top:14px"><div class="row" style="justify-content:space-between"><span class="muted small">완료/전체</span><span style="font-weight:700">${all.done} / ${all.total}</span></div></div>
     </div>
@@ -676,14 +679,11 @@ function renderInteractions(){
 
 function renderSettings(){
   const stages=state.meta.stages||[];
+  const dates=state.meta.dates||{};
   return`<div class="page-head"><div><h2>설정</h2></div></div>
   <div class="card">
-    <div class="setting-row"><div><label>가오픈일</label></div><input type="date" data-act="set-meta" data-key="가오픈일" value="${state.meta.가오픈일||''}"/></div>
-    <div class="setting-row"><div><label>정식오픈일</label></div><input type="date" data-act="set-meta" data-key="정식오픈일" value="${state.meta.정식오픈일||''}"/></div>
-  </div>
-  <div class="card">
-    <div class="row" style="justify-content:space-between;margin-bottom:6px"><div><label style="font-weight:600">출시 단계 관리</label><div class="desc" style="color:var(--text-muted);font-size:12px;margin-top:2px">자유롭게 추가/편집</div></div><button class="btn btn-soft btn-sm" data-act="add-stage">+ 추가</button></div>
-    <div class="stage-list">${stages.map((st,i)=>`<div class="stage-item"><input data-act="edit-stage" data-idx="${i}" value="${esc(st)}" placeholder="단계 이름"/><div class="reorder"><button data-act="move-stage-up" data-idx="${i}" ${i===0?'disabled':''}>▲</button><button data-act="move-stage-down" data-idx="${i}" ${i===stages.length-1?'disabled':''}>▼</button></div><button class="btn-icon" data-act="del-stage" data-idx="${i}">×</button></div>`).join('')||'<div class="muted small">단계가 없어요.</div>'}</div>
+    <div class="row" style="justify-content:space-between;margin-bottom:6px"><div><label style="font-weight:600">출시 단계 관리</label><div class="desc" style="color:var(--text-muted);font-size:12px;margin-top:2px">단계 이름과 D-Day 기준 날짜를 함께 관리</div></div><button class="btn btn-soft btn-sm" data-act="add-stage">+ 추가</button></div>
+    <div class="stage-list">${stages.map((st,i)=>`<div class="stage-item"><input class="stage-name-input" data-act="edit-stage" data-idx="${i}" value="${esc(st)}" placeholder="단계 이름"/><input type="date" class="stage-date-input" data-act="set-stage-date" data-idx="${i}" value="${esc(dates[st]||'')}" title="이 단계 D-Day 기준일"/><div class="reorder"><button data-act="move-stage-up" data-idx="${i}" ${i===0?'disabled':''}>▲</button><button data-act="move-stage-down" data-idx="${i}" ${i===stages.length-1?'disabled':''}>▼</button></div><button class="btn-icon" data-act="del-stage" data-idx="${i}">×</button></div>`).join('')||'<div class="muted small">단계가 없어요.</div>'}</div>
   </div>
   <div class="card">
     <div class="setting-row"><div><label>내보내기</label><div class="desc" style="color:var(--text-muted);font-size:12px">JSON 백업</div></div><button class="btn btn-soft" data-act="export">내보내기</button></div>
@@ -761,11 +761,11 @@ document.addEventListener('click',ev=>{
   if(act==='goto-elem'){selPage=t.dataset.page;openSections.add(t.dataset.section);view='pages';render();return;}
   if(act==='goto-ix'){selPage=t.dataset.page;openSections.add(t.dataset.section);openIxPanels.add(t.dataset.eid);editingIx.add(t.dataset.eid);view='pages';render();return;}
   if(act==='add-stage'){state.meta.stages=state.meta.stages||[];state.meta.stages.push('새 단계');save();render();return;}
-  if(act==='del-stage'){const idx=parseInt(t.dataset.idx);confirmDialog('단계를 삭제하시겠어요?',()=>{const removed=state.meta.stages[idx];state.meta.stages.splice(idx,1);state.pages.forEach(p=>{if(p.release===removed)p.release='';});save();render();});return;}
+  if(act==='del-stage'){const idx=parseInt(t.dataset.idx);confirmDialog('단계를 삭제하시겠어요?',()=>{const removed=state.meta.stages[idx];state.meta.stages.splice(idx,1);if(state.meta.dates)delete state.meta.dates[removed];state.pages.forEach(p=>{if(p.release===removed)p.release='';});save();render();});return;}
   if(act==='move-stage-up'||act==='move-stage-down'){const idx=parseInt(t.dataset.idx),j=act==='move-stage-up'?idx-1:idx+1;if(j<0||j>=state.meta.stages.length)return;[state.meta.stages[idx],state.meta.stages[j]]=[state.meta.stages[j],state.meta.stages[idx]];save();render();return;}
   if(act==='export'){doExport();return;}
   if(act==='import'){document.getElementById('import-file').click();return;}
-  if(act==='reset'){confirmDialog('정말 모든 데이터를 삭제하시겠어요?',async()=>{state={meta:{가오픈일:'',정식오픈일:'',stages:[...DEFAULT_RELEASES]},pages:[]};selPage=null;openSections.clear();openIxPanels.clear();editingIx.clear();await save();render();});return;}
+  if(act==='reset'){confirmDialog('정말 모든 데이터를 삭제하시겠어요?',async()=>{state={meta:{stages:[...DEFAULT_RELEASES],dates:{}},pages:[]};selPage=null;openSections.clear();openIxPanels.clear();editingIx.clear();await save();render();});return;}
 });
 
 document.addEventListener('change',ev=>{
@@ -778,6 +778,7 @@ document.addEventListener('change',ev=>{
   if(act==='toggle-ix-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e||!e.ix)return;e.ix.done=t.checked;save();render();return;}
   if(act==='edit-page-release'){const p=findPage(t.dataset.id);if(!p)return;p.release=t.value;save();return;}
   if(act==='set-meta'){state.meta[t.dataset.key]=t.value;save();render();return;}
+  if(act==='set-stage-date'){const idx=parseInt(t.dataset.idx),name=state.meta.stages&&state.meta.stages[idx];if(!name)return;state.meta.dates=state.meta.dates||{};if(t.value)state.meta.dates[name]=t.value;else delete state.meta.dates[name];save();render();return;}
   if(act==='set-ix'&&t.dataset.key==='action'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.action=t.value;save();render();}return;}
   if(act==='set-ix-param'&&t.type==='checkbox'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.params=e.ix.params||{};e.ix.params[t.dataset.key]=t.checked;save();}return;}
 });
@@ -795,7 +796,7 @@ document.addEventListener('input',ev=>{
   else if(act==='set-ix'){if(t.dataset.key==='action')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix)e.ix[t.dataset.key]=t.value;}
   else if(act==='set-ix-param'){if(t.type==='checkbox')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.params=e.ix.params||{};e.ix.params[t.dataset.key]=t.value;}}
   else if(act==='set-meta'){state.meta[t.dataset.key]=t.value;}
-  else if(act==='edit-stage'){const idx=parseInt(t.dataset.idx),old=state.meta.stages[idx];state.meta.stages[idx]=t.value;state.pages.forEach(p=>{if(p.release===old)p.release=t.value;});}
+  else if(act==='edit-stage'){const idx=parseInt(t.dataset.idx),old=state.meta.stages[idx];state.meta.stages[idx]=t.value;state.pages.forEach(p=>{if(p.release===old)p.release=t.value;});if(state.meta.dates&&old!==t.value&&old in state.meta.dates){state.meta.dates[t.value]=state.meta.dates[old];delete state.meta.dates[old];}}
   else return;
   clearTimeout(inputTimer);inputTimer=setTimeout(()=>save(),300);
 });
