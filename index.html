@@ -146,6 +146,9 @@
   .asset-row label{font-size:11px;color:var(--text-muted);font-weight:600;flex-shrink:0}
   .asset-row input{flex:1;font-size:12px;padding:5px 8px}
   .asset-row a{font-size:11px;color:var(--primary);text-decoration:none;font-weight:600;flex-shrink:0;padding:5px 8px}
+  .effect-row{padding:10px 14px;display:flex;align-items:center;gap:8px;background:var(--primary-soft);border-bottom:1px solid var(--border-soft)}
+  .effect-row label{font-size:14px;flex-shrink:0}
+  .effect-row input{flex:1;background:#fff}
   .ix-panel{padding:14px;border-top:1px solid var(--border-soft);background:#fafbfc;display:none}
   .ix-panel.open{display:block}
   .ix-panel-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}
@@ -574,6 +577,7 @@ function renderElem(p,s,e,ei){
 function renderIxList(p,s,e){
   const ixs=e.ixs||[];
   let h=`<div class="ix-list">`;
+  h+=`<div class="effect-row"><label>✨</label><input data-act="edit-elem-effect" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" value="${esc(e.effect||'')}" placeholder="효과 한 줄 메모 (예: 부드럽게 떠오르며 등장)"/></div>`;
   ixs.forEach((ix,i)=>{h+=renderIxCard(p,s,e,ix,i);});
   h+=`<div class="ix-add-row"><button class="btn btn-soft btn-sm" data-act="ix-add" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">+ 인터랙션 추가</button></div></div>`;
   return h;
@@ -819,6 +823,7 @@ document.addEventListener('input',ev=>{
   else if(act==='edit-section-abbr'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(s){const v=t.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(v!==t.value)t.value=v;s.abbr=v;}}
   else if(act==='edit-elem-label'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.label=t.value;}
   else if(act==='edit-elem-asset'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.assetPath=t.value;}
+  else if(act==='edit-elem-effect'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.effect=t.value;}
   else if(act==='set-ix'){if(t.dataset.key==='action')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(ix)ix[t.dataset.key]=t.value;}
   else if(act==='set-ix-param'){if(t.type==='checkbox')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(ix){ix.params=ix.params||{};ix.params[t.dataset.key]=t.value;}}
   else if(act==='set-meta'){state.meta[t.dataset.key]=t.value;}
