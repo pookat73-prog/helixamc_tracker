@@ -352,6 +352,13 @@ function genId(p,s,idx){
   return `${(p.abbr||'?').toUpperCase()}-${(s.abbr||'?').toUpperCase()}-${String(idx+1).padStart(3,'0')}`;
 }
 function assetIdx(s,eid){let i=0;for(const e of(s.elements||[])){if(isAsset(e)){if(e.id===eid)return i;i++;}}return -1;}
+function imageIdx(s,eid){let i=0;for(const e of(s.elements||[])){if(e.type==='image'){if(e.id===eid)return i;i++;}}return -1;}
+function objectIdx(s,eid){let i=0;for(const e of(s.elements||[])){if(e.type==='object'){if(e.id===eid)return i;i++;}}return -1;}
+function elemDisplayId(p,s,e){
+  if(e.type==='image')return genId(p,s,imageIdx(s,e.id));
+  if(e.type==='object')return `오브젝트 ${objectIdx(s,e.id)+1}`;
+  return '';
+}
 function ddayText(d){
   if(!d) return null;
   const today=new Date();today.setHours(0,0,0,0);
@@ -531,7 +538,7 @@ function renderSection(p,s,si){
 
 function renderElem(p,s,e,ei){
   const ixOn=e.ix&&e.ix.on,panelOpen=openIxPanels.has(e.id),asset=isAsset(e);
-  let id='';if(asset){const idx=assetIdx(s,e.id);id=genId(p,s,idx);}
+  const id=asset?elemDisplayId(p,s,e):'';
   const typeLabel=e.type==='text'?'유닛':e.type==='image'?'이미지/영상':'오브젝트';
   const typeCls=`elem-type-${e.type}`;
   const ph=e.type==='text'?'설명':e.type==='image'?'이미지 설명 (예: 강아지 진료)':'오브젝트 설명 (예: 진료 프로세스 다이어그램)';
@@ -624,7 +631,7 @@ function renderIxSummary(ix){
 
 function renderAssets(){
   const items=[];
-  state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{if(isAsset(e)){const idx=assetIdx(s,e.id);items.push({id:genId(p,s,idx),page:p,section:s,elem:e});}})));
+  state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{if(isAsset(e)){items.push({id:elemDisplayId(p,s,e),page:p,section:s,elem:e});}})));
   let h=`<div class="page-head"><div><h2>에셋 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">🖼</div><div class="empty-msg">에셋이 없어요.</div></div>`;
   h+=`<div class="filter-bar">
@@ -650,7 +657,7 @@ function renderAssets(){
 
 function renderInteractions(){
   const items=[];
-  state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{if(e.ix&&e.ix.on){let id='';if(isAsset(e)){const idx=assetIdx(s,e.id);id=genId(p,s,idx);}items.push({page:p,section:s,elem:e,id});}})));
+  state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{if(e.ix&&e.ix.on){const id=isAsset(e)?elemDisplayId(p,s,e):'';items.push({page:p,section:s,elem:e,id});}})));
   let h=`<div class="page-head"><div><h2>인터랙션 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">⚡</div><div class="empty-msg">인터랙션이 없어요.</div></div>`;
   h+=`<div class="filter-bar">
