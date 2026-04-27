@@ -444,39 +444,41 @@ let openIxPanels = new Set();
 let editingIx = new Set(); // eids currently in edit mode
 
 // ============== STORAGE ==============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const DB_REF = 'homepage-progress';
+
 async function load(){
   try{
-    const r = await window.storage.get(STORAGE_KEY);
-    if(r && r.value){ state = JSON.parse(r.value); }
-  }catch(e){ /* first load or not found */ }
-  // Migrations / defaults
-  if(!state.pages) state.pages = [];
-  if(!state.meta) state.meta = {};
-  if(!state.meta.stages) state.meta.stages = [...DEFAULT_RELEASES];
-  if(state.meta.가오픈일===undefined) state.meta.가오픈일 = '';
-  if(state.meta.정식오픈일===undefined) state.meta.정식오픈일 = '';
-  // Migrate page checks: ensure all PAGE_TASKS keys exist
+    const snap = await db.ref(DB_REF).once('value');
+    if(snap.val()) state = snap.val();
+  }catch(e){ console.error('Load failed',e); }
+  if(!state.pages) state.pages=[];
+  if(!state.meta) state.meta={};
+  if(!state.meta.stages) state.meta.stages=[...DEFAULT_RELEASES];
+  if(!state.meta.가오픈일) state.meta.가오픈일='';
+  if(!state.meta.정식오픈일) state.meta.정식오픈일='';
   state.pages.forEach(p=>{
-    if(!p.checks) p.checks = {};
-    PAGE_TASKS.forEach(k=>{ if(p.checks[k]===undefined) p.checks[k] = false; });
-    if(!p.flags) p.flags = [];
-    if(!p.sections) p.sections = [];
+    if(!p.checks) p.checks={};
+    PAGE_TASKS.forEach(k=>{ if(p.checks[k]===undefined) p.checks[k]=false; });
+    if(!p.flags) p.flags=[];
+    if(!p.sections) p.sections=[];
     p.sections.forEach(s=>{
-      if(!s.stages) s.stages = {};
-      SECTION_STAGES.forEach(k=>{ if(s.stages[k]===undefined) s.stages[k] = (s.checks && s.checks[k]) ? true : false; });
-      if(!s.flags) s.flags = [];
-      if(!s.elements) s.elements = [];
+      if(!s.stages) s.stages={};
+      SECTION_STAGES.forEach(k=>{ if(s.stages[k]===undefined) s.stages[k]=(s.checks&&s.checks[k])||false; });
+      if(!s.flags) s.flags=[];
+      if(!s.elements) s.elements=[];
       s.elements.forEach(e=>{
         if(e.type==='etc') e.type='object';
-        if(e.assetPath===undefined) e.assetPath = '';
-        if(e.ix && e.ix.params===undefined) e.ix.params = {};
+        if(e.assetPath===undefined) e.assetPath='';
+        if(e.ix && e.ix.params===undefined) e.ix.params={};
       });
     });
   });
 }
 async function save(){
-  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state)); }
-  catch(e){ console.error('Save failed', e); }
+  try{ await db.ref(DB_REF).set(state); }
+  catch(e){ console.error('Save failed',e); }
 }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 
