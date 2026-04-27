@@ -198,6 +198,9 @@
   .modal h3{font-size:16px;font-weight:700;margin-bottom:6px}
   .modal p{color:var(--text-muted);font-size:13px;margin-bottom:18px}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:200;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
+  .toast.show{opacity:1;transform:translate(-50%,-4px)}
+  .toast.error{background:var(--danger)}
   @media(max-width:900px){
     #app{flex-direction:column}
     .sidebar{width:100%;height:auto;position:relative;flex-direction:row;align-items:center;flex-wrap:wrap;padding:16px;gap:12px}
@@ -229,6 +232,7 @@
   </aside>
   <main class="main" id="main"></main>
 </div>
+<div class="toast error" id="toast"></div>
 <div class="modal-bg hidden" id="confirm-modal">
   <div class="modal">
     <h3 id="confirm-title">삭제 확인</h3>
@@ -286,11 +290,7 @@ let state = {meta:{가오픈일:'',정식오픈일:'',stages:[...DEFAULT_RELEASE
 let view='dashboard', selPage=null;
 let openSections=new Set(), openIxPanels=new Set(), editingIx=new Set();
 
-async function load(){
-  try{
-    const snap = await db.ref(DB_REF).once('value');
-    if(snap.val()) state = snap.val();
-  }catch(e){console.error('Load failed',e);}
+function normalizeState(){
   if(!state.pages) state.pages=[];
   if(!state.meta) state.meta={};
   if(!state.meta.stages) state.meta.stages=[...DEFAULT_RELEASES];
@@ -314,11 +314,39 @@ async function load(){
     });
   });
 }
+async function load(){
+  try{
+    const snap = await db.ref(DB_REF).once('value');
+    if(snap.val()) state = snap.val();
+  }catch(e){console.error('Load failed',e);}
+  normalizeState();
+}
+let lastLocalWrite = 0;
+const ECHO_WINDOW_MS = 1500;
+function subscribe(){
+  db.ref(DB_REF).on('value', snap => {
+    if(Date.now() - lastLocalWrite < ECHO_WINDOW_MS) return;
+    if(inputTimer) return;
+    const v = snap.val();
+    if(!v) return;
+    state = v;
+    normalizeState();
+    render();
+  }, err => console.error('Sync error', err));
+}
 async function save(){
+  lastLocalWrite = Date.now();
   try{await db.ref(DB_REF).set(state);}
-  catch(e){console.error('Save failed',e);}
+  catch(e){console.error('Save failed',e);showToast('저장 실패: '+(e.message||e));}
 }
 function uid(){return Math.random().toString(36).slice(2,10);}
+let toastTimer=null;
+function showToast(msg){
+  const el=document.getElementById('toast');if(!el)return;
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
 
 // ============== CALC ==============
 function isAsset(e){return e.type==='image'||e.type==='object';}
@@ -345,7 +373,17 @@ function calcAll(){
 function genId(p,s,idx){
   return `${(p.abbr||'?').toUpperCase()}-${(s.abbr||'?').toUpperCase()}-${String(idx+1).padStart(3,'0')}`;
 }
-function assetIdx(s,eid){let i=0;for(const e of(s.elements||[])){if(isAsset(e)){if(e.id===eid)return i;i++;}}return -1;}
+let _assetIdxCache=new WeakMap();
+function assetIdx(s,eid){
+  let map=_assetIdxCache.get(s);
+  if(!map){
+    map=new Map();let i=0;
+    for(const e of(s.elements||[])){if(isAsset(e)){map.set(e.id,i);i++;}}
+    _assetIdxCache.set(s,map);
+  }
+  const v=map.get(eid);
+  return v===undefined?-1:v;
+}
 function ddayText(d){
   if(!d) return null;
   const today=new Date();today.setHours(0,0,0,0);
@@ -356,12 +394,21 @@ function ddayText(d){
   return{text:`D+${-diff}`,past:true};
 }
 function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function safeUrl(u){
+  if(!u) return '';
+  const s=String(u).trim();
+  if(/^(https?:|mailto:|tel:)/i.test(s)) return esc(s);
+  if(/^[\/.]/.test(s)) return esc(s);
+  if(/^[a-z0-9._-]+(\/|$)/i.test(s)&&!/^javascript:/i.test(s)) return esc(s);
+  return '#';
+}
 
 // ============== RENDER ==============
 const $main=document.getElementById('main');
 const $dday=document.getElementById('dday-area');
 
 function render(){
+  _assetIdxCache=new WeakMap();
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   $dday.innerHTML=renderDDay();
   if(view==='dashboard') $main.innerHTML=renderDashboard();
@@ -544,7 +591,7 @@ function renderElem(p,s,e,ei){
         <button class="btn-icon" data-act="del-elem" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">×</button>
       </div>
     </div>`;
-  if(asset) h+=`<div class="asset-row"><label>📁</label><input data-act="edit-elem-asset" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" value="${esc(e.assetPath||'')}" placeholder="파일 경로 또는 URL"/>${e.assetPath?`<a href="${esc(e.assetPath)}" target="_blank">열기 ↗</a>`:''}</div>`;
+  if(asset) h+=`<div class="asset-row"><label>📁</label><input data-act="edit-elem-asset" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" value="${esc(e.assetPath||'')}" placeholder="파일 경로 또는 URL"/>${e.assetPath?`<a href="${safeUrl(e.assetPath)}" target="_blank" rel="noopener noreferrer">열기 ↗</a>`:''}</div>`;
   if(panelOpen) h+=renderIxPanel(p,s,e);
   return h+`</div>`;
 }
@@ -604,7 +651,7 @@ function renderIxSummary(ix){
   }
   if(ix.link||ix.memo){
     h+=`<div class="ix-summary-section">참고</div>`;
-    if(ix.link) h+=`<dt>링크</dt><dd><a href="${esc(ix.link)}" target="_blank">${esc(ix.link)} ↗</a></dd>`;
+    if(ix.link) h+=`<dt>링크</dt><dd><a href="${safeUrl(ix.link)}" target="_blank" rel="noopener noreferrer">${esc(ix.link)} ↗</a></dd>`;
     if(ix.memo) h+=`<dt>메모</dt><dd style="white-space:pre-wrap">${esc(ix.memo)}</dd>`;
   }
   return h+`</dl>`;
@@ -628,7 +675,7 @@ function renderAssets(){
       <td><span class="elem-type-badge elem-type-${it.elem.type}">${it.elem.type==='image'?'이미지/영상':'오브젝트'}</span></td>
       <td class="muted small">${esc(it.page.name)} › ${esc(it.section.name)}</td>
       <td>${esc(it.elem.label||'(설명 없음)')}</td>
-      <td class="small">${it.elem.assetPath?`<a href="${esc(it.elem.assetPath)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:none">📁 열기</a>`:'<span class="muted">—</span>'}</td>
+      <td class="small">${it.elem.assetPath?`<a href="${safeUrl(it.elem.assetPath)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:none">📁 열기</a>`:'<span class="muted">—</span>'}</td>
       <td class="small">${it.elem.ix&&it.elem.ix.on?`<span class="muted">⚡${esc(it.elem.ix.action||'')} ${it.elem.ix.done?'✓':''}</span>`:'<span class="muted">—</span>'}</td>
       <td>${it.elem.done?'<span class="flag" style="background:var(--success-soft);color:#065f46">완료</span>':'<span class="flag flag-보류">미완</span>'}</td>
     </tr>`).join('')}</tbody>
@@ -659,7 +706,7 @@ function renderInteractions(){
         ${ix.device?`<dt>디바이스</dt><dd>${esc(ix.device)}</dd>`:''}
         ${filled.map(f=>`<dt>${esc(f.label)}</dt><dd>${f.type==='checkbox'?'✓':esc(String(params[f.key]))}</dd>`).join('')}
       </dl>
-      ${ix.link?`<a class="ix-card-link" href="${esc(ix.link)}" target="_blank">참고 링크 ↗</a>`:''}
+      ${ix.link?`<a class="ix-card-link" href="${safeUrl(ix.link)}" target="_blank" rel="noopener noreferrer">참고 링크 ↗</a>`:''}
       ${ix.memo?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);font-size:12px;color:var(--text-muted);white-space:pre-wrap">${esc(ix.memo)}</div>`:''}
     </div>`;
   });
@@ -772,6 +819,13 @@ document.addEventListener('change',ev=>{
   if(act==='set-meta'){state.meta[t.dataset.key]=t.value;save();render();return;}
   if(act==='set-ix'&&t.dataset.key==='action'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.action=t.value;save();render();}return;}
   if(act==='set-ix-param'&&t.type==='checkbox'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.params=e.ix.params||{};e.ix.params[t.dataset.key]=t.checked;save();}return;}
+  if(act==='edit-stage'){
+    const idx=parseInt(t.dataset.idx),old=state.meta.stages[idx],val=t.value;
+    if(old===val) return;
+    state.meta.stages[idx]=val;
+    state.pages.forEach(p=>{if(p.release===old)p.release=val;});
+    save();render();return;
+  }
 });
 
 let inputTimer=null;
@@ -787,9 +841,8 @@ document.addEventListener('input',ev=>{
   else if(act==='set-ix'){if(t.dataset.key==='action')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix)e.ix[t.dataset.key]=t.value;}
   else if(act==='set-ix-param'){if(t.type==='checkbox')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.params=e.ix.params||{};e.ix.params[t.dataset.key]=t.value;}}
   else if(act==='set-meta'){state.meta[t.dataset.key]=t.value;}
-  else if(act==='edit-stage'){const idx=parseInt(t.dataset.idx),old=state.meta.stages[idx];state.meta.stages[idx]=t.value;state.pages.forEach(p=>{if(p.release===old)p.release=t.value;});}
   else return;
-  clearTimeout(inputTimer);inputTimer=setTimeout(()=>save(),300);
+  clearTimeout(inputTimer);inputTimer=setTimeout(()=>{inputTimer=null;save();},300);
 });
 
 function doExport(){
@@ -800,13 +853,24 @@ function doExport(){
 function handleImport(ev){
   const f=ev.target.files[0];if(!f)return;
   const r=new FileReader();
-  r.onload=e=>{try{const data=JSON.parse(e.target.result);confirmDialog('현재 데이터를 덮어쓸까요?',async()=>{state=data;await load();await save();render();});}catch(err){alert('파일 오류: '+err.message);}};
+  r.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data||typeof data!=='object'||!Array.isArray(data.pages)) throw new Error('형식이 올바르지 않습니다 (pages 배열 필요)');
+      confirmDialog('현재 데이터를 덮어쓸까요?',async()=>{
+        state=data;
+        normalizeState();
+        await save();
+        render();
+      });
+    }catch(err){alert('파일 오류: '+err.message);}
+  };
   r.readAsText(f);ev.target.value='';
 }
 
 // ============== INIT ==============
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-load().then(render);
+load().then(()=>{render();subscribe();});
 </script>
 </body>
 </html>
