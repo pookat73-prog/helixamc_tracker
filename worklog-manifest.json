@@ -1,4 +1,5 @@
 {
+  "id": "helixamc-worklog",
   "name": "추가근무 기록",
   "short_name": "추가근무",
   "start_url": "worklog.html",
