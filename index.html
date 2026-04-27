@@ -87,6 +87,7 @@
   .page-card:hover{box-shadow:var(--shadow-lg);border-color:#d1d5db}
   .page-card-head{display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:12px}
   .page-card-title{font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .page-card-title.empty{color:var(--text-light);font-weight:500}
   .page-card-abbr{display:inline-block;background:var(--border-soft);color:var(--text-muted);font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;margin-top:4px;font-family:'SF Mono',Menlo,monospace}
   .page-card-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:12px;color:var(--text-muted)}
   .release-tag{background:#fef3c7;color:#92400e;font-size:11px;padding:3px 9px;border-radius:99px;font-weight:600}
@@ -444,7 +445,7 @@ function renderDashboard(){
     stagesToShow.forEach(st=>{
       h+=`<div style="margin-bottom:18px"><div class="muted small" style="font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">${esc(st)} · ${byStage[st].length}개</div>`;
       byStage[st].sort((x,y)=>x._c.pct-y._c.pct).forEach(p=>{
-        h+=`<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;margin-bottom:5px"><span style="font-weight:600">${esc(p.name)}</span><span class="row gap-8 small"><span class="muted">${p._c.done}/${p._c.total}</span><span style="font-weight:700">${p._c.pct}%</span></span></div><div class="pbar"><div class="pbar-fill ${p._c.pct===100?'full':''}" style="width:${p._c.pct}%"></div></div></div>`;
+        h+=`<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;margin-bottom:5px"><span style="font-weight:600${p.name?'':';color:var(--text-light)'}">${p.name?esc(p.name):'(이름 없음)'}</span><span class="row gap-8 small"><span class="muted">${p._c.done}/${p._c.total}</span><span style="font-weight:700">${p._c.pct}%</span></span></div><div class="pbar"><div class="pbar-fill ${p._c.pct===100?'full':''}" style="width:${p._c.pct}%"></div></div></div>`;
       });
       h+=`</div>`;
     });
@@ -462,7 +463,7 @@ function renderPagesList(){
   state.pages.forEach(p=>{
     const c=calcPage(p),undone=c.total-c.done;
     h+=`<div class="card page-card" data-act="open-page" data-id="${p.id}">
-      <div class="page-card-head"><div><div class="page-card-title">${esc(p.name)}</div>${p.abbr?`<div class="page-card-abbr">${esc(p.abbr.toUpperCase())}</div>`:''}</div><span class="release-tag ${p.release?'':'empty'}">${esc(p.release||'미지정')}</span></div>
+      <div class="page-card-head"><div><div class="page-card-title${p.name?'':' empty'}">${p.name?esc(p.name):'(이름 없음)'}</div>${p.abbr?`<div class="page-card-abbr">${esc(p.abbr.toUpperCase())}</div>`:''}</div><span class="release-tag ${p.release?'':'empty'}">${esc(p.release||'미지정')}</span></div>
       <div class="row" style="justify-content:space-between;margin-bottom:5px"><span class="muted small">진행률</span><span style="font-weight:700">${c.pct}%</span></div>
       <div class="pbar"><div class="pbar-fill ${c.pct===100?'full':''}" style="width:${c.pct}%"></div></div>
       <div class="page-card-meta"><span>섹션 ${(p.sections||[]).length}개</span><span>·</span><span>${c.done}/${c.total}</span>${undone>0?`<span>·</span><span style="color:var(--warning)">미완 ${undone}</span>`:''}</div>
@@ -742,13 +743,13 @@ document.addEventListener('click',ev=>{
   if(act==='open-page'){selPage=t.dataset.id;render();return;}
   if(act==='add-page'){
     const checks={};PAGE_TASKS.forEach(k=>checks[k]=false);
-    const p={id:uid(),name:'새 페이지',abbr:'',release:'',flags:[],checks,sections:[]};
+    const p={id:uid(),name:'',abbr:'',release:'',flags:[],checks,sections:[]};
     state.pages.push(p);save();selPage=p.id;render();return;
   }
   if(act==='del-page'){confirmDialog('이 페이지를 삭제하시겠어요?',()=>{state.pages=state.pages.filter(p=>p.id!==t.dataset.id);selPage=null;save();render();});return;}
   if(act==='toggle-page-flag'){const p=findPage(t.dataset.id);if(!p)return;p.flags=p.flags||[];const f=t.dataset.flag;if(p.flags.includes(f))p.flags=p.flags.filter(x=>x!==f);else p.flags.push(f);save();render();return;}
   if(act==='toggle-section-flag'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.flags=s.flags||[];const f=t.dataset.flag;if(s.flags.includes(f))s.flags=s.flags.filter(x=>x!==f);else s.flags.push(f);save();render();return;}
-  if(act==='add-section'){const p=findPage(t.dataset.id);if(!p)return;p.sections=p.sections||[];const stages={};SECTION_STAGES.forEach(k=>stages[k]=false);const s={id:uid(),name:'새 섹션',abbr:'',flags:[],stages,elements:[]};p.sections.push(s);openSections.add(s.id);save();render();return;}
+  if(act==='add-section'){const p=findPage(t.dataset.id);if(!p)return;p.sections=p.sections||[];const stages={};SECTION_STAGES.forEach(k=>stages[k]=false);const s={id:uid(),name:'',abbr:'',flags:[],stages,elements:[]};p.sections.push(s);openSections.add(s.id);save();render();return;}
   if(act==='toggle-section'){const sid=t.dataset.id;if(openSections.has(sid))openSections.delete(sid);else openSections.add(sid);render();return;}
   if(act==='del-section'){confirmDialog('섹션을 삭제하시겠어요?',()=>{const p=findPage(t.dataset.pid);if(!p)return;p.sections=(p.sections||[]).filter(s=>s.id!==t.dataset.sid);save();render();});return;}
   if(act==='move-section-up'||act==='move-section-down'){const p=findPage(t.dataset.pid);if(!p)return;const i=p.sections.findIndex(s=>s.id===t.dataset.sid),j=act==='move-section-up'?i-1:i+1;if(j<0||j>=p.sections.length)return;[p.sections[i],p.sections[j]]=[p.sections[j],p.sections[i]];save();render();return;}
@@ -760,7 +761,7 @@ document.addEventListener('click',ev=>{
   if(act==='ix-register'){editingIx.delete(t.dataset.eid);save();render();return;}
   if(act==='goto-elem'){selPage=t.dataset.page;openSections.add(t.dataset.section);view='pages';render();return;}
   if(act==='goto-ix'){selPage=t.dataset.page;openSections.add(t.dataset.section);openIxPanels.add(t.dataset.eid);editingIx.add(t.dataset.eid);view='pages';render();return;}
-  if(act==='add-stage'){state.meta.stages=state.meta.stages||[];state.meta.stages.push('새 단계');save();render();return;}
+  if(act==='add-stage'){state.meta.stages=state.meta.stages||[];state.meta.stages.push('');save();render();return;}
   if(act==='del-stage'){const idx=parseInt(t.dataset.idx);confirmDialog('단계를 삭제하시겠어요?',()=>{const removed=state.meta.stages[idx];state.meta.stages.splice(idx,1);if(state.meta.dates)delete state.meta.dates[removed];state.pages.forEach(p=>{if(p.release===removed)p.release='';});save();render();});return;}
   if(act==='move-stage-up'||act==='move-stage-down'){const idx=parseInt(t.dataset.idx),j=act==='move-stage-up'?idx-1:idx+1;if(j<0||j>=state.meta.stages.length)return;[state.meta.stages[idx],state.meta.stages[j]]=[state.meta.stages[j],state.meta.stages[idx]];save();render();return;}
   if(act==='export'){doExport();return;}
