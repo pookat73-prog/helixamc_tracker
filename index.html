@@ -423,7 +423,6 @@ function formatIx(ix){
   filled.forEach(f=>{const v=params[f.key];lines.push(`  - ${f.label}: ${f.type==='checkbox'?'✓':String(v)}`);});
   if(ix.link) lines.push(`  - 링크: ${ix.link}`);
   if(ix.memo) lines.push(`  - 메모: ${String(ix.memo).replace(/\n/g,'\n    ')}`);
-  lines.push(`  - 상태: ${ix.done?'완료':'미완'}`);
   return lines.join('\n');
 }
 function formatElement(p,s,e,{indent=''}={}){
@@ -433,22 +432,15 @@ function formatElement(p,s,e,{indent=''}={}){
   const out=[];
   out.push(`${indent}${id?`[${id}] `:''}${e.label||'(설명 없음)'} (${typeLabel})`);
   const sub=indent+'  ';
-  if(isAsset(e)){
-    if(e.assetPath) out.push(`${sub}경로: ${e.assetPath}`);
-    out.push(`${sub}완료: ${e.done?'✓':'✗'}`);
-  }
+  if(isAsset(e)&&e.assetPath) out.push(`${sub}경로: ${e.assetPath}`);
   if(e.ix&&e.ix.on){
     out.push(formatIx(e.ix).split('\n').map(l=>sub+l).join('\n'));
   }
   return out.join('\n');
 }
 function formatSection(p,s,{withHeader=true,indent=''}={}){
-  const c=calcSection(s);
   const out=[];
   if(withHeader) out.push(`${indent}## ${s.name}${s.abbr?` (${s.abbr.toUpperCase()})`:''}`);
-  out.push(`${indent}진행률: ${c.pct}% (${c.done}/${c.total})`);
-  if(s.flags&&s.flags.length) out.push(`${indent}플래그: ${s.flags.join(', ')}`);
-  out.push(`${indent}단계: ${SECTION_STAGES.map(k=>`${(s.stages&&s.stages[k])?'✓':'✗'} ${k}`).join(' / ')}`);
   if(s.elements&&s.elements.length){
     out.push('',`${indent}### 유닛`);
     s.elements.forEach(e=>out.push(formatElement(p,s,e,{indent:indent+'  '})));
@@ -456,13 +448,8 @@ function formatSection(p,s,{withHeader=true,indent=''}={}){
   return out.join('\n');
 }
 function formatPage(p){
-  const c=calcPage(p);
   const out=[];
   out.push(`# ${p.name}${p.abbr?` (${p.abbr.toUpperCase()})`:''}`);
-  if(p.release) out.push(`출시 단계: ${p.release}`);
-  out.push(`진행률: ${c.pct}% (${c.done}/${c.total})`);
-  if(p.flags&&p.flags.length) out.push(`플래그: ${p.flags.join(', ')}`);
-  out.push(`작업: ${PAGE_TASKS.map(k=>`${(p.checks&&p.checks[k])?'✓':'✗'} ${k}`).join(' / ')}`);
   (p.sections||[]).forEach(s=>{out.push('','',formatSection(p,s));});
   return out.join('\n');
 }
