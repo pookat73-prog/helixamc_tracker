@@ -149,6 +149,9 @@
   .ix-panel{padding:14px;border-top:1px solid var(--border-soft);background:#fafbfc;display:none}
   .ix-panel.open{display:block}
   .ix-panel-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .ix-list{border-top:1px solid var(--border-soft)}
+  .ix-list .ix-panel+.ix-panel{border-top:1px solid var(--border)}
+  .ix-add-row{padding:10px;text-align:center;background:#fafbfc;border-top:1px dashed var(--border)}
   .ix-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
   .ix-field label{display:block;font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
   .ix-field input,.ix-field select,.ix-field textarea{width:100%;font-size:13px}
@@ -315,7 +318,11 @@ async function load(){
       s.elements.forEach(e=>{
         if(e.type==='etc') e.type='object';
         if(e.assetPath===undefined) e.assetPath='';
-        if(e.ix&&e.ix.params===undefined) e.ix.params={};
+        if(!e.ixs){
+          e.ixs = (e.ix && (e.ix.on||e.ix.action)) ? [{...e.ix,id:e.ix.id||uid()}] : [];
+        }
+        delete e.ix;
+        e.ixs.forEach(ix=>{if(!ix.id)ix.id=uid();if(!ix.params)ix.params={};delete ix.on;});
       });
     });
   });
@@ -333,7 +340,7 @@ function calcSection(s){
   if(s.stages) Object.values(s.stages).forEach(v=>{total++;if(v)done++;});
   (s.elements||[]).forEach(e=>{
     if(isAsset(e)){total++;if(e.done)done++;}
-    if(e.ix&&e.ix.on){total++;if(e.ix.done)done++;}
+    (e.ixs||[]).forEach(ix=>{total++;if(ix.done)done++;});
   });
   return{total,done,pct:total?Math.round(done/total*100):0};
 }
@@ -411,7 +418,7 @@ function renderDashboard(){
     secCount+=(p.sections||[]).length;
     (p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{
       if(isAsset(e)){assetCount++;if(e.done)assetDone++;}
-      if(e.ix&&e.ix.on){ixCount++;if(e.ix.done)ixDone++;}
+      (e.ixs||[]).forEach(ix=>{ixCount++;if(ix.done)ixDone++;});
     }));
   });
   const dates=state.meta.dates||{};
@@ -537,7 +544,9 @@ function renderSection(p,s,si){
 }
 
 function renderElem(p,s,e,ei){
-  const ixOn=e.ix&&e.ix.on,panelOpen=openIxPanels.has(e.id),asset=isAsset(e);
+  const ixs=e.ixs||[],ixCount=ixs.length,panelOpen=openIxPanels.has(e.id),asset=isAsset(e);
+  const allDone=ixCount>0&&ixs.every(ix=>ix.done);
+  const ixBtnCls=ixCount===0?'':(allDone?'done':'active');
   const id=asset?elemDisplayId(p,s,e):'';
   const typeLabel=e.type==='text'?'유닛':e.type==='image'?'이미지/영상':'오브젝트';
   const typeCls=`elem-type-${e.type}`;
@@ -549,8 +558,7 @@ function renderElem(p,s,e,ei){
       <input class="elem-label" data-act="edit-elem-label" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" value="${esc(e.label||'')}" placeholder="${ph}"/>
       ${asset?`<label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-elem-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${e.done?'checked':''}/><span class="small">완료</span></label>`:''}
       <div class="elem-actions">
-        ${ixOn?`<label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-ix-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${e.ix.done?'checked':''}/><span class="small">⚡완료</span></label>`:''}
-        <button class="ix-toggle-btn ${ixOn?(e.ix.done?'done':'active'):''}" data-act="toggle-ix-panel" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">⚡${ixOn?'':'추가'}</button>
+        <button class="ix-toggle-btn ${ixBtnCls}" data-act="toggle-ix-panel" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">⚡${ixCount===0?'추가':ixCount}</button>
         <div class="reorder">
           <button data-act="move-elem-up" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${ei===0?'disabled':''}>▲</button>
           <button data-act="move-elem-down" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${ei===s.elements.length-1?'disabled':''}>▼</button>
@@ -559,46 +567,54 @@ function renderElem(p,s,e,ei){
       </div>
     </div>`;
   if(asset) h+=`<div class="asset-row"><label>📁</label><input data-act="edit-elem-asset" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" value="${esc(e.assetPath||'')}" placeholder="파일 경로 또는 URL"/>${e.assetPath?`<a href="${esc(e.assetPath)}" target="_blank">열기 ↗</a>`:''}</div>`;
-  if(panelOpen) h+=renderIxPanel(p,s,e);
+  if(panelOpen) h+=renderIxList(p,s,e);
   return h+`</div>`;
 }
 
-function renderIxPanel(p,s,e){
-  const ix=e.ix||{},on=!!ix.on,editing=editingIx.has(e.id);
-  if(!on) return '';
-  let h=`<div class="ix-panel open"><div class="ix-panel-header"><span style="font-weight:600">⚡ 인터랙션</span><div style="margin-left:auto;display:flex;gap:6px">${!editing?`<button class="btn btn-ghost btn-sm" data-act="ix-edit" data-eid="${e.id}">수정</button>`:''}<button class="btn btn-danger btn-sm" data-act="ix-delete" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">삭제</button></div></div>`;
+function renderIxList(p,s,e){
+  const ixs=e.ixs||[];
+  let h=`<div class="ix-list">`;
+  ixs.forEach((ix,i)=>{h+=renderIxCard(p,s,e,ix,i);});
+  h+=`<div class="ix-add-row"><button class="btn btn-soft btn-sm" data-act="ix-add" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">+ 인터랙션 추가</button></div></div>`;
+  return h;
+}
+
+function renderIxCard(p,s,e,ix,i){
+  const editing=editingIx.has(ix.id);
+  let h=`<div class="ix-panel open"><div class="ix-panel-header"><span style="font-weight:600">⚡ 인터랙션 ${i+1}${ix.action?` · ${esc(ix.action)}`:''}</span><div style="margin-left:auto;display:flex;gap:6px;align-items:center"><label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-ix-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}" ${ix.done?'checked':''}/><span class="small">완료</span></label>${!editing?`<button class="btn btn-ghost btn-sm" data-act="ix-edit" data-iid="${ix.id}">수정</button>`:''}<button class="btn btn-danger btn-sm" data-act="ix-delete" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}">삭제</button></div></div>`;
   h+=editing?renderIxForm(p,s,e,ix):renderIxSummary(ix);
   return h+`</div>`;
 }
 
 function renderIxForm(p,s,e,ix){
   const params=ix.params||{},action=ix.action||ACTIONS[0],aFields=ACTION_FIELDS[action]||[];
+  const D=`data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}"`;
   let h=`<div class="ix-grid">
     <div class="ix-section-title">기본</div>
-    <div class="ix-field"><label>트리거</label><select data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="trigger">${TRIGGERS.map(t=>`<option ${ix.trigger===t?'selected':''}>${t}</option>`).join('')}</select></div>
-    <div class="ix-field"><label>동작</label><select data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="action">${ACTIONS.map(t=>`<option ${ix.action===t?'selected':''}>${t}</option>`).join('')}</select></div>
-    <div class="ix-field"><label>디바이스</label><select data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="device">${DEVICES.map(t=>`<option ${ix.device===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="ix-field"><label>트리거</label><select data-act="set-ix" ${D} data-key="trigger">${TRIGGERS.map(t=>`<option ${ix.trigger===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="ix-field"><label>동작</label><select data-act="set-ix" ${D} data-key="action">${ACTIONS.map(t=>`<option ${ix.action===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="ix-field"><label>디바이스</label><select data-act="set-ix" ${D} data-key="device">${DEVICES.map(t=>`<option ${ix.device===t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="ix-section-title">타이밍</div>
-    <div class="ix-field"><label>지속시간 (초)</label><input type="number" step="0.05" min="0" data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="duration" value="${esc(ix.duration||'')}" placeholder="0.6"/></div>
-    <div class="ix-field"><label>지연 (초)</label><input type="number" step="0.05" min="0" data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="delay" value="${esc(ix.delay||'')}" placeholder="0"/></div>
-    <div class="ix-field"><label>이징</label><select data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="easing">${EASINGS.map(t=>`<option ${ix.easing===t?'selected':''}>${t}</option>`).join('')}</select></div>`;
+    <div class="ix-field"><label>지속시간 (초)</label><input type="number" step="0.05" min="0" data-act="set-ix" ${D} data-key="duration" value="${esc(ix.duration||'')}" placeholder="0.6"/></div>
+    <div class="ix-field"><label>지연 (초)</label><input type="number" step="0.05" min="0" data-act="set-ix" ${D} data-key="delay" value="${esc(ix.delay||'')}" placeholder="0"/></div>
+    <div class="ix-field"><label>이징</label><select data-act="set-ix" ${D} data-key="easing">${EASINGS.map(t=>`<option ${ix.easing===t?'selected':''}>${t}</option>`).join('')}</select></div>`;
   if(aFields.length){
     h+=`<div class="ix-section-title">${esc(action)} 설정</div>`;
     aFields.forEach(f=>{
       const val=params[f.key];
-      if(f.type==='checkbox') h+=`<div class="ix-field-check"><input type="checkbox" data-act="set-ix-param" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="${f.key}" ${val?'checked':''}/><label style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)">${esc(f.label)}</label></div>`;
-      else if(f.type==='select') h+=`<div class="ix-field"><label>${esc(f.label)}</label><select data-act="set-ix-param" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="${f.key}"><option value="">선택</option>${f.options.map(o=>`<option ${val===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`;
-      else if(f.type==='textarea') h+=`<div class="ix-field ix-field-full"><label>${esc(f.label)}</label><textarea data-act="set-ix-param" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="${f.key}" placeholder="${esc(f.placeholder||'')}">${esc(val||'')}</textarea></div>`;
-      else h+=`<div class="ix-field"><label>${esc(f.label)}</label><input type="${f.type||'text'}" ${f.step?`step="${f.step}"`:''} data-act="set-ix-param" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="${f.key}" value="${esc(val||'')}" placeholder="${esc(f.placeholder||'')}"/></div>`;
+      if(f.type==='checkbox') h+=`<div class="ix-field-check"><input type="checkbox" data-act="set-ix-param" ${D} data-key="${f.key}" ${val?'checked':''}/><label style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)">${esc(f.label)}</label></div>`;
+      else if(f.type==='select') h+=`<div class="ix-field"><label>${esc(f.label)}</label><select data-act="set-ix-param" ${D} data-key="${f.key}"><option value="">선택</option>${f.options.map(o=>`<option ${val===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`;
+      else if(f.type==='textarea') h+=`<div class="ix-field ix-field-full"><label>${esc(f.label)}</label><textarea data-act="set-ix-param" ${D} data-key="${f.key}" placeholder="${esc(f.placeholder||'')}">${esc(val||'')}</textarea></div>`;
+      else h+=`<div class="ix-field"><label>${esc(f.label)}</label><input type="${f.type||'text'}" ${f.step?`step="${f.step}"`:''} data-act="set-ix-param" ${D} data-key="${f.key}" value="${esc(val||'')}" placeholder="${esc(f.placeholder||'')}"/></div>`;
     });
   }
   h+=`<div class="ix-section-title">🔵 실제 적용 (Live)</div>
-    <div class="ix-field ix-field-full"><label>사이트에 실제 적용된 인터랙션</label><textarea class="ix-actual-textarea" rows="6" data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="actual" placeholder="Claude에게 'home/section1 인터랙션 정리해줘' 같이 요청해서 받은 내용을 붙여넣으세요. 비워두면 표시 안 됨.">${esc(ix.actual||'')}</textarea></div>
+    <div class="ix-field ix-field-full"><label>사이트에 실제 적용된 인터랙션</label><textarea class="ix-actual-textarea" rows="6" data-act="set-ix" ${D} data-key="actual" placeholder="Claude에게 'home/section1 인터랙션 정리해줘' 같이 요청해서 받은 내용을 붙여넣으세요. 비워두면 표시 안 됨.">${esc(ix.actual||'')}</textarea></div>
     <div class="ix-section-title">참고</div>
-    <div class="ix-field ix-field-full"><label>참고 링크</label><input data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="link" value="${esc(ix.link||'')}" placeholder="https://..."/></div>
-    <div class="ix-field ix-field-full"><label>메모</label><textarea data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="memo" placeholder="상세 설명">${esc(ix.memo||'')}</textarea></div>
+    <div class="ix-field ix-field-full"><label>참고 링크</label><input data-act="set-ix" ${D} data-key="link" value="${esc(ix.link||'')}" placeholder="https://..."/></div>
+    <div class="ix-field ix-field-full"><label>메모</label><textarea data-act="set-ix" ${D} data-key="memo" placeholder="상세 설명">${esc(ix.memo||'')}</textarea></div>
   </div>
-  <div class="ix-actions"><button class="btn btn-success" data-act="ix-register" data-eid="${e.id}">✓ 등록</button></div>`;
+  <div class="ix-actions"><button class="btn btn-success" data-act="ix-register" data-iid="${ix.id}">✓ 등록</button></div>`;
   return h;
 }
 
@@ -649,7 +665,7 @@ function renderAssets(){
       <td class="muted small">${esc(it.page.name)} › ${esc(it.section.name)}</td>
       <td>${esc(it.elem.label||'(설명 없음)')}</td>
       <td class="small">${it.elem.assetPath?`<a href="${esc(it.elem.assetPath)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:none">📁 열기</a>`:'<span class="muted">—</span>'}</td>
-      <td class="small">${it.elem.ix&&it.elem.ix.on?`<span class="muted">⚡${esc(it.elem.ix.action||'')} ${it.elem.ix.done?'✓':''}</span>`:'<span class="muted">—</span>'}</td>
+      <td class="small">${(it.elem.ixs||[]).length?(it.elem.ixs||[]).map(ix=>`<span class="muted">⚡${esc(ix.action||'')}${ix.done?' ✓':''}</span>`).join(' '):'<span class="muted">—</span>'}</td>
       <td>${it.elem.done?'<span class="flag" style="background:var(--success-soft);color:#065f46">완료</span>':'<span class="flag flag-보류">미완</span>'}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
@@ -658,7 +674,7 @@ function renderAssets(){
 
 function renderInteractions(){
   const items=[];
-  state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{if(e.ix&&e.ix.on){const id=isAsset(e)?elemDisplayId(p,s,e):'';items.push({page:p,section:s,elem:e,id});}})));
+  state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{(e.ixs||[]).forEach(ix=>{const id=isAsset(e)?elemDisplayId(p,s,e):'';items.push({page:p,section:s,elem:e,ix,id});});})));
   let h=`<div class="page-head"><div><h2>인터랙션 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">⚡</div><div class="empty-msg">인터랙션이 없어요.</div></div>`;
   h+=`<div class="filter-bar">
@@ -668,10 +684,10 @@ function renderInteractions(){
     <input id="ix-filter-search" placeholder="검색..." style="flex:1;min-width:160px"/>
   </div><div class="grid grid-3" id="ix-grid">`;
   items.forEach(it=>{
-    const ix=it.elem.ix,params=ix.params||{},aFields=ACTION_FIELDS[ix.action]||[];
+    const ix=it.ix,params=ix.params||{},aFields=ACTION_FIELDS[ix.action]||[];
     const filled=aFields.filter(f=>{const v=params[f.key];return f.type==='checkbox'?!!v:v!==undefined&&v!==''&&v!==null;});
     h+=`<div class="ix-card" data-page="${it.page.id}" data-section="${it.section.id}" data-status="${ix.done?'done':'undone'}" data-trigger="${esc(ix.trigger||'')}" data-action="${esc(ix.action||'')}" data-search="${esc((it.elem.label+' '+(ix.memo||'')).toLowerCase())}">
-      <div class="ix-card-head"><div><div class="ix-card-loc">${esc(it.page.name)} › ${esc(it.section.name)}</div><div class="ix-card-label">${it.id?`<span class="elem-id" style="margin-right:6px">${it.id}</span>`:''}${esc(it.elem.label||'(설명 없음)')}</div></div>${ix.done?'<span class="flag" style="background:var(--success-soft);color:#065f46">✓ 완료</span>':`<button class="btn btn-ghost btn-sm" data-act="goto-ix" data-page="${it.page.id}" data-section="${it.section.id}" data-eid="${it.elem.id}">편집</button>`}</div>
+      <div class="ix-card-head"><div><div class="ix-card-loc">${esc(it.page.name)} › ${esc(it.section.name)}</div><div class="ix-card-label">${it.id?`<span class="elem-id" style="margin-right:6px">${it.id}</span>`:''}${esc(it.elem.label||'(설명 없음)')}</div></div>${ix.done?'<span class="flag" style="background:var(--success-soft);color:#065f46">✓ 완료</span>':`<button class="btn btn-ghost btn-sm" data-act="goto-ix" data-page="${it.page.id}" data-section="${it.section.id}" data-eid="${it.elem.id}" data-iid="${ix.id}">편집</button>`}</div>
       <dl class="ix-summary-grid">
         ${ix.trigger?`<dt>트리거</dt><dd>${esc(ix.trigger)}</dd>`:''}
         ${ix.action?`<dt>동작</dt><dd><strong>${esc(ix.action)}</strong></dd>`:''}
@@ -761,15 +777,16 @@ document.addEventListener('click',ev=>{
   if(act==='toggle-section'){const sid=t.dataset.id;if(openSections.has(sid))openSections.delete(sid);else openSections.add(sid);render();return;}
   if(act==='del-section'){confirmDialog('섹션을 삭제하시겠어요?',()=>{const p=findPage(t.dataset.pid);if(!p)return;p.sections=(p.sections||[]).filter(s=>s.id!==t.dataset.sid);save();render();});return;}
   if(act==='move-section-up'||act==='move-section-down'){const p=findPage(t.dataset.pid);if(!p)return;const i=p.sections.findIndex(s=>s.id===t.dataset.sid),j=act==='move-section-up'?i-1:i+1;if(j<0||j>=p.sections.length)return;[p.sections[i],p.sections[j]]=[p.sections[j],p.sections[i]];save();render();return;}
-  if(act==='add-elem'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.elements=s.elements||[];s.elements.push({id:uid(),type:t.dataset.type,label:'',done:false,assetPath:'',ix:null});save();render();return;}
+  if(act==='add-elem'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.elements=s.elements||[];s.elements.push({id:uid(),type:t.dataset.type,label:'',done:false,assetPath:'',ixs:[]});save();render();return;}
   if(act==='del-elem'){confirmDialog('유닛을 삭제하시겠어요?',()=>{const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.elements=(s.elements||[]).filter(e=>e.id!==t.dataset.eid);save();render();});return;}
   if(act==='move-elem-up'||act==='move-elem-down'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;const i=s.elements.findIndex(e=>e.id===t.dataset.eid),j=act==='move-elem-up'?i-1:i+1;if(j<0||j>=s.elements.length)return;[s.elements[i],s.elements[j]]=[s.elements[j],s.elements[i]];save();render();return;}
-  if(act==='toggle-ix-panel'){const eid=t.dataset.eid;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,eid);if(!e)return;if(!e.ix||!e.ix.on){e.ix={trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'0.6',delay:'0',easing:'ease-out',link:'',memo:'',actual:'',done:false,params:{},on:true};openIxPanels.add(eid);editingIx.add(eid);save();render();return;}if(openIxPanels.has(eid))openIxPanels.delete(eid);else openIxPanels.add(eid);render();return;}
-  if(act==='ix-edit'){editingIx.add(t.dataset.eid);render();return;}
-  if(act==='ix-register'){editingIx.delete(t.dataset.eid);save();render();return;}
-  if(act==='ix-delete'){confirmDialog('이 인터랙션을 삭제할까요?',()=>{const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.ix=null;openIxPanels.delete(t.dataset.eid);editingIx.delete(t.dataset.eid);save();render();});return;}
+  if(act==='toggle-ix-panel'){const eid=t.dataset.eid;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,eid);if(!e)return;e.ixs=e.ixs||[];if(e.ixs.length===0){const ix={id:uid(),trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'0.6',delay:'0',easing:'ease-out',link:'',memo:'',actual:'',done:false,params:{}};e.ixs.push(ix);openIxPanels.add(eid);editingIx.add(ix.id);save();render();return;}if(openIxPanels.has(eid))openIxPanels.delete(eid);else openIxPanels.add(eid);render();return;}
+  if(act==='ix-add'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.ixs=e.ixs||[];const ix={id:uid(),trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'0.6',delay:'0',easing:'ease-out',link:'',memo:'',actual:'',done:false,params:{}};e.ixs.push(ix);openIxPanels.add(t.dataset.eid);editingIx.add(ix.id);save();render();return;}
+  if(act==='ix-edit'){editingIx.add(t.dataset.iid);render();return;}
+  if(act==='ix-register'){editingIx.delete(t.dataset.iid);save();render();return;}
+  if(act==='ix-delete'){confirmDialog('이 인터랙션을 삭제할까요?',()=>{const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.ixs=(e.ixs||[]).filter(ix=>ix.id!==t.dataset.iid);editingIx.delete(t.dataset.iid);save();render();});return;}
   if(act==='goto-elem'){selPage=t.dataset.page;openSections.add(t.dataset.section);view='pages';render();return;}
-  if(act==='goto-ix'){selPage=t.dataset.page;openSections.add(t.dataset.section);openIxPanels.add(t.dataset.eid);editingIx.add(t.dataset.eid);view='pages';render();return;}
+  if(act==='goto-ix'){selPage=t.dataset.page;openSections.add(t.dataset.section);openIxPanels.add(t.dataset.eid);if(t.dataset.iid)editingIx.add(t.dataset.iid);view='pages';render();return;}
   if(act==='add-stage'){state.meta.stages=state.meta.stages||[];state.meta.stages.push('');save();render();return;}
   if(act==='del-stage'){const idx=parseInt(t.dataset.idx);confirmDialog('단계를 삭제하시겠어요?',()=>{const removed=state.meta.stages[idx];state.meta.stages.splice(idx,1);if(state.meta.dates)delete state.meta.dates[removed];state.pages.forEach(p=>{if(p.release===removed)p.release='';});save();render();});return;}
   if(act==='move-stage-up'||act==='move-stage-down'){const idx=parseInt(t.dataset.idx),j=act==='move-stage-up'?idx-1:idx+1;if(j<0||j>=state.meta.stages.length)return;[state.meta.stages[idx],state.meta.stages[j]]=[state.meta.stages[j],state.meta.stages[idx]];save();render();return;}
@@ -784,12 +801,12 @@ document.addEventListener('change',ev=>{
   if(act==='toggle-page-check'){const p=findPage(t.dataset.id);if(!p)return;p.checks=p.checks||{};p.checks[t.dataset.key]=t.checked;save();render();return;}
   if(act==='toggle-section-stage'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.stages=s.stages||{};s.stages[t.dataset.key]=t.checked;save();render();return;}
   if(act==='toggle-elem-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.done=t.checked;save();render();return;}
-  if(act==='toggle-ix-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e||!e.ix)return;e.ix.done=t.checked;save();render();return;}
+  if(act==='toggle-ix-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;const ix=(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(!ix)return;ix.done=t.checked;save();render();return;}
   if(act==='edit-page-release'){const p=findPage(t.dataset.id);if(!p)return;p.release=t.value;save();return;}
   if(act==='set-meta'){state.meta[t.dataset.key]=t.value;save();render();return;}
   if(act==='set-stage-date'){const idx=parseInt(t.dataset.idx),name=state.meta.stages&&state.meta.stages[idx];if(!name)return;state.meta.dates=state.meta.dates||{};if(t.value)state.meta.dates[name]=t.value;else delete state.meta.dates[name];save();render();return;}
-  if(act==='set-ix'&&t.dataset.key==='action'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.action=t.value;save();render();}return;}
-  if(act==='set-ix-param'&&t.type==='checkbox'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.params=e.ix.params||{};e.ix.params[t.dataset.key]=t.checked;save();}return;}
+  if(act==='set-ix'&&t.dataset.key==='action'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(ix){ix.action=t.value;save();render();}return;}
+  if(act==='set-ix-param'&&t.type==='checkbox'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(ix){ix.params=ix.params||{};ix.params[t.dataset.key]=t.checked;save();}return;}
 });
 
 let inputTimer=null;
@@ -802,8 +819,8 @@ document.addEventListener('input',ev=>{
   else if(act==='edit-section-abbr'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(s){const v=t.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(v!==t.value)t.value=v;s.abbr=v;}}
   else if(act==='edit-elem-label'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.label=t.value;}
   else if(act==='edit-elem-asset'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.assetPath=t.value;}
-  else if(act==='set-ix'){if(t.dataset.key==='action')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix)e.ix[t.dataset.key]=t.value;}
-  else if(act==='set-ix-param'){if(t.type==='checkbox')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e&&e.ix){e.ix.params=e.ix.params||{};e.ix.params[t.dataset.key]=t.value;}}
+  else if(act==='set-ix'){if(t.dataset.key==='action')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(ix)ix[t.dataset.key]=t.value;}
+  else if(act==='set-ix-param'){if(t.type==='checkbox')return;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(ix){ix.params=ix.params||{};ix.params[t.dataset.key]=t.value;}}
   else if(act==='set-meta'){state.meta[t.dataset.key]=t.value;}
   else if(act==='edit-stage'){const idx=parseInt(t.dataset.idx),old=state.meta.stages[idx];state.meta.stages[idx]=t.value;state.pages.forEach(p=>{if(p.release===old)p.release=t.value;});if(state.meta.dates&&old!==t.value&&old in state.meta.dates){state.meta.dates[t.value]=state.meta.dates[old];delete state.meta.dates[old];}}
   else return;
