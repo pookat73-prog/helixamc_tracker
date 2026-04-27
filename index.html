@@ -163,6 +163,9 @@
   .ix-summary-grid dd a{color:var(--primary);text-decoration:none}
   .ix-summary-section{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)}
   .ix-summary-section:first-child{margin-top:0;padding-top:0;border-top:none}
+  .ix-summary-section.ix-actual-title{color:var(--primary);border-top-color:var(--primary)}
+  .ix-actual-block{grid-column:1/-1;white-space:pre-wrap;background:var(--primary-soft);color:var(--text);padding:10px 12px;border-radius:var(--r-xs);font-size:12.5px;line-height:1.55;font-family:'SF Mono',Menlo,monospace;max-height:280px;overflow-y:auto}
+  .ix-actual-textarea{font-family:'SF Mono',Menlo,monospace;font-size:12.5px;line-height:1.5;background:var(--primary-soft);min-height:120px}
   .add-elem-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .add-elem-row .btn{font-size:12px;padding:6px 10px}
   .table{width:100%;border-collapse:collapse;background:#fff;border-radius:var(--r);overflow:hidden}
@@ -577,7 +580,9 @@ function renderIxForm(p,s,e,ix){
       else h+=`<div class="ix-field"><label>${esc(f.label)}</label><input type="${f.type||'text'}" ${f.step?`step="${f.step}"`:''} data-act="set-ix-param" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="${f.key}" value="${esc(val||'')}" placeholder="${esc(f.placeholder||'')}"/></div>`;
     });
   }
-  h+=`<div class="ix-section-title">참고</div>
+  h+=`<div class="ix-section-title">🔵 실제 적용 (Live)</div>
+    <div class="ix-field ix-field-full"><label>사이트에 실제 적용된 인터랙션</label><textarea class="ix-actual-textarea" rows="6" data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="actual" placeholder="Claude에게 'home/section1 인터랙션 정리해줘' 같이 요청해서 받은 내용을 붙여넣으세요. 비워두면 표시 안 됨.">${esc(ix.actual||'')}</textarea></div>
+    <div class="ix-section-title">참고</div>
     <div class="ix-field ix-field-full"><label>참고 링크</label><input data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="link" value="${esc(ix.link||'')}" placeholder="https://..."/></div>
     <div class="ix-field ix-field-full"><label>메모</label><textarea data-act="set-ix" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-key="memo" placeholder="상세 설명">${esc(ix.memo||'')}</textarea></div>
   </div>
@@ -601,6 +606,9 @@ function renderIxSummary(ix){
   if(filled.length){
     h+=`<div class="ix-summary-section">${esc(action)}</div>`;
     filled.forEach(f=>{const v=params[f.key];h+=`<dt>${esc(f.label)}</dt><dd>${f.type==='checkbox'?'✓':esc(String(v))}</dd>`;});
+  }
+  if(ix.actual){
+    h+=`<div class="ix-summary-section ix-actual-title">🔵 실제 적용 (Live)</div><dd class="ix-actual-block">${esc(ix.actual)}</dd>`;
   }
   if(ix.link||ix.memo){
     h+=`<div class="ix-summary-section">참고</div>`;
