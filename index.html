@@ -170,6 +170,15 @@
   .ix-summary-grid dd a{color:var(--primary);text-decoration:none}
   .ix-summary-section{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)}
   .ix-summary-section:first-child{margin-top:0;padding-top:0;border-top:none}
+  .ix-summary-row{display:flex;flex-wrap:wrap;gap:6px 22px;margin:6px 0 4px}
+  .ix-pair{display:flex;flex-direction:column;gap:2px;min-width:50px}
+  .ix-pair dt{color:var(--text-muted);font-weight:500;font-size:11px;letter-spacing:.02em}
+  .ix-pair dd{font-weight:600;font-size:13px;word-break:break-word}
+  .ix-pair dd a{color:var(--primary);text-decoration:none}
+  .ix-pair-block{margin-top:4px;display:flex;gap:10px;font-size:13px}
+  .ix-pair-block dt{color:var(--text-muted);font-weight:500;font-size:12px;flex-shrink:0;min-width:36px}
+  .ix-pair-block dd{font-weight:500;word-break:break-word;flex:1}
+  .ix-pair-block dd a{color:var(--primary);text-decoration:none}
   .ix-summary-section.ix-actual-title{color:var(--primary);border-top-color:var(--primary)}
   .ix-actual-block{grid-column:1/-1;white-space:pre-wrap;background:var(--primary-soft);color:var(--text);padding:10px 12px;border-radius:var(--r-xs);font-size:12.5px;line-height:1.55;font-family:'SF Mono',Menlo,monospace;max-height:280px;overflow-y:auto}
   .ix-actual-textarea{font-family:'SF Mono',Menlo,monospace;font-size:12.5px;line-height:1.5;background:var(--primary-soft);min-height:120px}
@@ -624,30 +633,31 @@ function renderIxForm(p,s,e,ix){
 
 function renderIxSummary(ix){
   const params=ix.params||{},action=ix.action||'',aFields=ACTION_FIELDS[action]||[];
-  let h=`<dl class="ix-summary-grid"><div class="ix-summary-section">기본</div>
-    ${ix.trigger?`<dt>트리거</dt><dd>${esc(ix.trigger)}</dd>`:''}
-    ${ix.action?`<dt>동작</dt><dd><strong>${esc(ix.action)}</strong></dd>`:''}
-    ${ix.device?`<dt>디바이스</dt><dd>${esc(ix.device)}</dd>`:''}`;
-  if(ix.duration||ix.delay||ix.easing){
-    h+=`<div class="ix-summary-section">타이밍</div>`;
-    if(ix.duration) h+=`<dt>지속</dt><dd>${esc(ix.duration)}s</dd>`;
-    if(ix.delay) h+=`<dt>지연</dt><dd>${esc(ix.delay)}s</dd>`;
-    if(ix.easing) h+=`<dt>이징</dt><dd>${esc(ix.easing)}</dd>`;
-  }
+  const pair=(k,v)=>`<div class="ix-pair"><dt>${k}</dt><dd>${v}</dd></div>`;
+  const row=(title,pairs)=>pairs.length?`<div class="ix-summary-section">${title}</div><div class="ix-summary-row">${pairs.join('')}</div>`:'';
+  const basic=[];
+  if(ix.trigger) basic.push(pair('트리거',esc(ix.trigger)));
+  if(ix.action) basic.push(pair('동작',`<strong>${esc(ix.action)}</strong>`));
+  if(ix.device) basic.push(pair('디바이스',esc(ix.device)));
+  const timing=[];
+  if(ix.duration) timing.push(pair('지속',`${esc(ix.duration)}s`));
+  if(ix.delay) timing.push(pair('지연',`${esc(ix.delay)}s`));
+  if(ix.easing) timing.push(pair('이징',esc(ix.easing)));
   const filled=aFields.filter(f=>{const v=params[f.key];return f.type==='checkbox'?!!v:v!==undefined&&v!==''&&v!==null;});
-  if(filled.length){
-    h+=`<div class="ix-summary-section">${esc(action)}</div>`;
-    filled.forEach(f=>{const v=params[f.key];h+=`<dt>${esc(f.label)}</dt><dd>${f.type==='checkbox'?'✓':esc(String(v))}</dd>`;});
-  }
+  const actionPairs=filled.map(f=>{const v=params[f.key];return pair(esc(f.label),f.type==='checkbox'?'✓':esc(String(v)));});
+  let h=`<div class="ix-summary">`;
+  h+=row('기본',basic);
+  h+=row('타이밍',timing);
+  h+=row(esc(action),actionPairs);
   if(ix.actual){
-    h+=`<div class="ix-summary-section ix-actual-title">🔵 실제 적용 (Live)</div><dd class="ix-actual-block">${esc(ix.actual)}</dd>`;
+    h+=`<div class="ix-summary-section ix-actual-title">🔵 실제 적용 (Live)</div><div class="ix-actual-block">${esc(ix.actual)}</div>`;
   }
   if(ix.link||ix.memo){
     h+=`<div class="ix-summary-section">참고</div>`;
-    if(ix.link) h+=`<dt>링크</dt><dd><a href="${esc(ix.link)}" target="_blank">${esc(ix.link)} ↗</a></dd>`;
-    if(ix.memo) h+=`<dt>메모</dt><dd style="white-space:pre-wrap">${esc(ix.memo)}</dd>`;
+    if(ix.link) h+=`<div class="ix-pair-block"><dt>링크</dt><dd><a href="${esc(ix.link)}" target="_blank">${esc(ix.link)} ↗</a></dd></div>`;
+    if(ix.memo) h+=`<div class="ix-pair-block"><dt>메모</dt><dd style="white-space:pre-wrap">${esc(ix.memo)}</dd></div>`;
   }
-  return h+`</dl>`;
+  return h+`</div>`;
 }
 
 function renderAssets(){
