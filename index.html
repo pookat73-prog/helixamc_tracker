@@ -550,7 +550,7 @@ function renderElem(p,s,e,ei){
       ${asset?`<label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-elem-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${e.done?'checked':''}/><span class="small">완료</span></label>`:''}
       <div class="elem-actions">
         ${ixOn?`<label class="check-item" style="padding:0"><input type="checkbox" data-act="toggle-ix-done" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${e.ix.done?'checked':''}/><span class="small">⚡완료</span></label>`:''}
-        <button class="ix-toggle-btn ${ixOn?(e.ix.done?'done':'active'):''}" data-act="toggle-ix-panel" data-eid="${e.id}">⚡${ixOn?'':'추가'}</button>
+        <button class="ix-toggle-btn ${ixOn?(e.ix.done?'done':'active'):''}" data-act="toggle-ix-panel" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">⚡${ixOn?'':'추가'}</button>
         <div class="reorder">
           <button data-act="move-elem-up" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${ei===0?'disabled':''}>▲</button>
           <button data-act="move-elem-down" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${ei===s.elements.length-1?'disabled':''}>▼</button>
@@ -565,8 +565,9 @@ function renderElem(p,s,e,ei){
 
 function renderIxPanel(p,s,e){
   const ix=e.ix||{},on=!!ix.on,editing=editingIx.has(e.id);
-  let h=`<div class="ix-panel open"><div class="ix-panel-header"><label class="check-item" style="font-weight:600;padding:0"><input type="checkbox" data-act="toggle-ix-on" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" ${on?'checked':''}/>인터랙션 적용</label>${on&&!editing?`<button class="btn btn-ghost btn-sm" data-act="ix-edit" data-eid="${e.id}">수정</button>`:''}</div>`;
-  if(on){h+=editing?renderIxForm(p,s,e,ix):renderIxSummary(ix);}
+  if(!on) return '';
+  let h=`<div class="ix-panel open"><div class="ix-panel-header"><span style="font-weight:600">⚡ 인터랙션</span><div style="margin-left:auto;display:flex;gap:6px">${!editing?`<button class="btn btn-ghost btn-sm" data-act="ix-edit" data-eid="${e.id}">수정</button>`:''}<button class="btn btn-danger btn-sm" data-act="ix-delete" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}">삭제</button></div></div>`;
+  h+=editing?renderIxForm(p,s,e,ix):renderIxSummary(ix);
   return h+`</div>`;
 }
 
@@ -763,9 +764,10 @@ document.addEventListener('click',ev=>{
   if(act==='add-elem'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.elements=s.elements||[];s.elements.push({id:uid(),type:t.dataset.type,label:'',done:false,assetPath:'',ix:null});save();render();return;}
   if(act==='del-elem'){confirmDialog('유닛을 삭제하시겠어요?',()=>{const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.elements=(s.elements||[]).filter(e=>e.id!==t.dataset.eid);save();render();});return;}
   if(act==='move-elem-up'||act==='move-elem-down'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;const i=s.elements.findIndex(e=>e.id===t.dataset.eid),j=act==='move-elem-up'?i-1:i+1;if(j<0||j>=s.elements.length)return;[s.elements[i],s.elements[j]]=[s.elements[j],s.elements[i]];save();render();return;}
-  if(act==='toggle-ix-panel'){const eid=t.dataset.eid;if(openIxPanels.has(eid))openIxPanels.delete(eid);else openIxPanels.add(eid);render();return;}
+  if(act==='toggle-ix-panel'){const eid=t.dataset.eid;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,eid);if(!e)return;if(!e.ix||!e.ix.on){e.ix={trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'0.6',delay:'0',easing:'ease-out',link:'',memo:'',actual:'',done:false,params:{},on:true};openIxPanels.add(eid);editingIx.add(eid);save();render();return;}if(openIxPanels.has(eid))openIxPanels.delete(eid);else openIxPanels.add(eid);render();return;}
   if(act==='ix-edit'){editingIx.add(t.dataset.eid);render();return;}
   if(act==='ix-register'){editingIx.delete(t.dataset.eid);save();render();return;}
+  if(act==='ix-delete'){confirmDialog('이 인터랙션을 삭제할까요?',()=>{const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.ix=null;openIxPanels.delete(t.dataset.eid);editingIx.delete(t.dataset.eid);save();render();});return;}
   if(act==='goto-elem'){selPage=t.dataset.page;openSections.add(t.dataset.section);view='pages';render();return;}
   if(act==='goto-ix'){selPage=t.dataset.page;openSections.add(t.dataset.section);openIxPanels.add(t.dataset.eid);editingIx.add(t.dataset.eid);view='pages';render();return;}
   if(act==='add-stage'){state.meta.stages=state.meta.stages||[];state.meta.stages.push('');save();render();return;}
@@ -782,7 +784,6 @@ document.addEventListener('change',ev=>{
   if(act==='toggle-page-check'){const p=findPage(t.dataset.id);if(!p)return;p.checks=p.checks||{};p.checks[t.dataset.key]=t.checked;save();render();return;}
   if(act==='toggle-section-stage'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.stages=s.stages||{};s.stages[t.dataset.key]=t.checked;save();render();return;}
   if(act==='toggle-elem-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.done=t.checked;save();render();return;}
-  if(act==='toggle-ix-on'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;if(t.checked){e.ix=e.ix||{trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'0.6',delay:'0',easing:'ease-out',link:'',memo:'',done:false,params:{}};e.ix.on=true;editingIx.add(e.id);}else{if(e.ix)e.ix.on=false;editingIx.delete(e.id);}save();render();return;}
   if(act==='toggle-ix-done'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e||!e.ix)return;e.ix.done=t.checked;save();render();return;}
   if(act==='edit-page-release'){const p=findPage(t.dataset.id);if(!p)return;p.release=t.value;save();return;}
   if(act==='set-meta'){state.meta[t.dataset.key]=t.value;save();render();return;}
