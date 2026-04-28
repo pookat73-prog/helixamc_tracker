@@ -571,11 +571,11 @@ function renderSection(p,s,si){
       <div class="section-name" onclick="event.stopPropagation()"><input data-act="edit-section-name" data-pid="${p.id}" data-sid="${s.id}" value="${esc(s.name)}" placeholder="섹션 이름"/></div>
       <input class="abbr-input" inputmode="latin" autocapitalize="characters" lang="en" onclick="event.stopPropagation()" data-act="edit-section-abbr" data-pid="${p.id}" data-sid="${s.id}" value="${esc(s.abbr||'')}" placeholder="HERO" maxlength="8"/>
       <div class="section-progress"><div class="pbar"><div class="pbar-fill ${c.pct===100?'full':''}" style="width:${c.pct}%"></div></div><span style="font-weight:700;color:var(--text)">${c.pct}%</span><span>${c.done}/${c.total}</span></div>
-      <div class="reorder" onclick="event.stopPropagation()">
+      <div class="reorder">
         <button data-act="move-section-up" data-pid="${p.id}" data-sid="${s.id}" ${si===0?'disabled':''}>▲</button>
         <button data-act="move-section-down" data-pid="${p.id}" data-sid="${s.id}" ${si===p.sections.length-1?'disabled':''}>▼</button>
       </div>
-      <button class="btn-icon" onclick="event.stopPropagation()" data-act="del-section" data-pid="${p.id}" data-sid="${s.id}">×</button>
+      <button class="btn-icon" data-act="del-section" data-pid="${p.id}" data-sid="${s.id}">×</button>
     </div>`;
   if(open){
     h+=`<div class="section-body open">
