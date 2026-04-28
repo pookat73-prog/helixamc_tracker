@@ -111,16 +111,25 @@
   .secondary-btn:hover { background: var(--primary-soft); }
 
   /* 합계 카드 */
-  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .summary-item { padding: 14px; background: var(--bg); border-radius: 10px; }
-  .summary-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .summary-item { padding: 12px 10px; background: var(--bg); border-radius: 10px; text-align: center; }
+  .summary-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
   .summary-value {
-    font-size: 22px; font-weight: 700;
+    font-size: 20px; font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--primary);
     letter-spacing: -0.5px;
   }
-  .summary-unit { font-size: 13px; color: var(--muted); margin-left: 2px; font-weight: 500; }
+  .summary-value.balance { color: var(--text); }
+  .summary-value.use { color: var(--danger); }
+  .summary-unit { font-size: 12px; color: var(--muted); margin-left: 1px; font-weight: 500; }
+  .summary-aside {
+    margin-top: 10px; font-size: 12px; color: var(--muted); text-align: center;
+  }
+
+  /* 보조 버튼 두 개 가로 배치 */
+  .secondary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .secondary-row .secondary-btn { margin-top: 0; }
 
   /* 로그 리스트 */
   .log-section-title {
@@ -158,6 +167,30 @@
     margin-top: 2px; font-weight: 500;
   }
   .log-overtime.regular { color: var(--muted); font-weight: 400; }
+  .log-overtime.use { color: var(--danger); }
+  .log-time-range.use-label { color: var(--danger); }
+  .log-memo { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* 모달 select (사용 시간 선택) */
+  .modal select {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--bg);
+    cursor: pointer;
+  }
+  .modal select:focus { outline: none; border-color: var(--primary); background: var(--card); }
+  .modal input[type="text"] {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--bg);
+  }
+  .modal input[type="text"]:focus { outline: none; border-color: var(--primary); background: var(--card); }
 
   .log-receipt {
     width: 36px; height: 36px;
@@ -286,21 +319,29 @@
     <div class="timer-display" id="timerDisplay">00:00:00</div>
     <div class="timer-sub" id="timerSub">버튼을 눌러 시작하세요</div>
     <button class="main-btn" id="mainBtn">시작</button>
-    <button class="secondary-btn" id="manualBtn">+ 직접 입력</button>
+    <div class="secondary-row">
+      <button class="secondary-btn" id="manualBtn">+ 직접 입력</button>
+      <button class="secondary-btn" id="useBtn">− 사용 기록</button>
+    </div>
   </div>
 
   <!-- 이번달 합계 -->
   <div class="card">
     <div class="summary-grid">
       <div class="summary-item">
-        <div class="summary-label">추가근무</div>
-        <div><span class="summary-value" id="sumOvertime">0</span><span class="summary-unit">시간</span></div>
+        <div class="summary-label">이번 달 적립</div>
+        <div><span class="summary-value" id="sumEarn">0</span><span class="summary-unit">시간</span></div>
       </div>
       <div class="summary-item">
-        <div class="summary-label">영수증</div>
-        <div><span class="summary-value" id="sumReceipts">0</span><span class="summary-unit">건</span></div>
+        <div class="summary-label">이번 달 사용</div>
+        <div><span class="summary-value use" id="sumUse">0</span><span class="summary-unit">시간</span></div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">누적 잔여</div>
+        <div><span class="summary-value balance" id="sumBalance">0</span><span class="summary-unit">시간</span></div>
       </div>
     </div>
+    <div class="summary-aside">영수증 <span id="sumReceipts">0</span>건</div>
     <button class="secondary-btn" id="exportBtn">엑셀로 내보내기</button>
   </div>
 
@@ -332,6 +373,29 @@
     <div class="modal-buttons">
       <button class="btn-cancel" id="cancelManual">취소</button>
       <button class="btn-confirm" id="confirmManual">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 사용 입력 모달 -->
+<div class="modal-bg" id="useModal">
+  <div class="modal">
+    <h2>사용 기록</h2>
+    <div class="field">
+      <label>날짜</label>
+      <input type="date" id="useDate">
+    </div>
+    <div class="field">
+      <label>사용 시간 (30분 단위)</label>
+      <select id="useDuration"></select>
+    </div>
+    <div class="field">
+      <label>메모 (선택)</label>
+      <input type="text" id="useMemo" placeholder="예: 오후 반차" maxlength="40">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" id="cancelUse">취소</button>
+      <button class="btn-confirm" id="confirmUse">저장</button>
     </div>
   </div>
 </div>
@@ -430,11 +494,13 @@ function calcOvertimeMinutes(startISO, endISO) {
 }
 
 function fmtDuration(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h === 0) return `${m}분`;
-  if (m === 0) return `${h}시간`;
-  return `${h}시간 ${m}분`;
+  const sign = mins < 0 ? '-' : '';
+  const abs = Math.abs(mins);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  if (h === 0) return `${sign}${m}분`;
+  if (m === 0) return `${sign}${h}시간`;
+  return `${sign}${h}시간 ${m}분`;
 }
 
 function fmtClock(secs) {
@@ -519,11 +585,24 @@ function saveRecord(startISO, endISO) {
   const date = startISO.slice(0, 10);
   const newRef = push(dataRef);
   set(newRef, {
+    type: "earn",
     date,
     start: startISO,
     end: endISO,
     overtimeMinutes,
     receipt: null,
+    createdAt: Date.now()
+  });
+}
+
+function saveUseRecord(date, usedMinutes, memo) {
+  if (!dataRef) return;
+  const newRef = push(dataRef);
+  set(newRef, {
+    type: "use",
+    date,
+    usedMinutes,
+    memo: memo || null,
     createdAt: Date.now()
   });
 }
@@ -570,6 +649,41 @@ document.getElementById("confirmManual").addEventListener("click", () => {
   const endISO = endDate.toISOString();
   saveRecord(startISO, endISO);
   manualModal.classList.remove("show");
+});
+
+// ───────────────────────────────────────────
+// 사용 입력 모달
+// ───────────────────────────────────────────
+const useModal = document.getElementById("useModal");
+const useDurationSelect = document.getElementById("useDuration");
+// 30분 ~ 12시간, 30분 단위
+for (let m = 30; m <= 720; m += 30) {
+  const opt = document.createElement('option');
+  opt.value = String(m);
+  opt.textContent = fmtDuration(m);
+  useDurationSelect.appendChild(opt);
+}
+
+document.getElementById("useBtn").addEventListener("click", () => {
+  document.getElementById("useDate").value = fmtDate(new Date());
+  useDurationSelect.value = "60";
+  document.getElementById("useMemo").value = "";
+  useModal.classList.add("show");
+});
+document.getElementById("cancelUse").addEventListener("click", () => useModal.classList.remove("show"));
+useModal.addEventListener("click", (e) => {
+  if (e.target === useModal) useModal.classList.remove("show");
+});
+document.getElementById("confirmUse").addEventListener("click", () => {
+  const date = document.getElementById("useDate").value;
+  const mins = parseInt(useDurationSelect.value, 10);
+  const memo = document.getElementById("useMemo").value.trim();
+  if (!date || !mins) {
+    alert("날짜와 사용 시간을 입력해주세요.");
+    return;
+  }
+  saveUseRecord(date, mins, memo);
+  useModal.classList.remove("show");
 });
 
 // ───────────────────────────────────────────
@@ -658,10 +772,16 @@ async function exportToExcel() {
   const monthRecords = Object.entries(records)
     .map(([id, r]) => ({ id, ...r }))
     .filter(r => {
-      const d = new Date(r.start);
-      return d.getFullYear() === y && d.getMonth() === m;
+      if (!r.date) return false;
+      const [yy, mm] = r.date.split('-').map(Number);
+      return yy === y && (mm - 1) === m;
     })
-    .sort((a, b) => new Date(a.start) - new Date(b.start));
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      const at = a.start ? new Date(a.start).getTime() : (a.createdAt || 0);
+      const bt = b.start ? new Date(b.start).getTime() : (b.createdAt || 0);
+      return at - bt;
+    });
 
   if (monthRecords.length === 0) {
     alert('이 달에 내보낼 기록이 없습니다.');
@@ -680,10 +800,12 @@ async function exportToExcel() {
     sheet.columns = [
       { header: '날짜', key: 'date', width: 12 },
       { header: '요일', key: 'day', width: 6 },
+      { header: '구분', key: 'type', width: 8 },
       { header: '시작', key: 'start', width: 8 },
       { header: '종료', key: 'end', width: 8 },
-      { header: '추가근무', key: 'overtime', width: 14 },
+      { header: '시간', key: 'duration', width: 14 },
       { header: '영수증', key: 'receipt', width: 14 },
+      { header: '메모', key: 'memo', width: 20 },
     ];
 
     const headerRow = sheet.getRow(1);
@@ -691,44 +813,75 @@ async function exportToExcel() {
     headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
     headerRow.height = 22;
 
-    let totalMins = 0;
+    let monthEarnMins = 0;
+    let monthUseMins = 0;
 
     for (const r of monthRecords) {
-      const row = sheet.addRow({
-        date: r.date,
-        day: DAY_NAMES[new Date(r.start).getDay()],
-        start: fmtTime(r.start),
-        end: fmtTime(r.end),
-        overtime: r.overtimeMinutes > 0 ? fmtDuration(r.overtimeMinutes) : '-',
-        receipt: '',
-      });
-      row.alignment = { vertical: 'middle', horizontal: 'center' };
-      totalMins += r.overtimeMinutes || 0;
+      if (recordType(r) === 'use') {
+        const dayObj = new Date(r.date + 'T00:00:00');
+        const row = sheet.addRow({
+          date: r.date,
+          day: DAY_NAMES[dayObj.getDay()],
+          type: '사용',
+          start: '',
+          end: '',
+          duration: `−${fmtDuration(r.usedMinutes || 0)}`,
+          receipt: '',
+          memo: r.memo || '',
+        });
+        row.alignment = { vertical: 'middle', horizontal: 'center' };
+        monthUseMins += r.usedMinutes || 0;
+      } else {
+        const row = sheet.addRow({
+          date: r.date,
+          day: DAY_NAMES[new Date(r.start).getDay()],
+          type: '적립',
+          start: fmtTime(r.start),
+          end: fmtTime(r.end),
+          duration: r.overtimeMinutes > 0 ? `+${fmtDuration(r.overtimeMinutes)}` : '-',
+          receipt: '',
+          memo: '',
+        });
+        row.alignment = { vertical: 'middle', horizontal: 'center' };
+        monthEarnMins += r.overtimeMinutes || 0;
 
-      if (r.receipt) {
-        try {
-          const imageId = workbook.addImage({
-            base64: r.receipt,
-            extension: 'jpeg',
-          });
-          row.height = 60;
-          sheet.addImage(imageId, {
-            tl: { col: 5, row: row.number - 1 },
-            ext: { width: 100, height: 75 },
-            editAs: 'oneCell',
-          });
-        } catch (e) {
-          console.error('이미지 삽입 실패:', e);
+        if (r.receipt) {
+          try {
+            const imageId = workbook.addImage({
+              base64: r.receipt,
+              extension: 'jpeg',
+            });
+            row.height = 60;
+            sheet.addImage(imageId, {
+              tl: { col: 6, row: row.number - 1 },
+              ext: { width: 100, height: 75 },
+              editAs: 'oneCell',
+            });
+          } catch (e) {
+            console.error('이미지 삽입 실패:', e);
+          }
         }
       }
     }
 
-    const totalRow = sheet.addRow({
-      date: '합계',
-      overtime: fmtDuration(totalMins),
+    // 누적 잔여 (전체 기간)
+    const allList = Object.values(records);
+    const allEarn = allList
+      .filter(r => recordType(r) === 'earn')
+      .reduce((s, r) => s + (r.overtimeMinutes || 0), 0);
+    const allUse = allList
+      .filter(r => recordType(r) === 'use')
+      .reduce((s, r) => s + (r.usedMinutes || 0), 0);
+    const balance = allEarn - allUse;
+
+    sheet.addRow({});
+    const earnRow = sheet.addRow({ date: '이번 달 적립', duration: fmtDuration(monthEarnMins) });
+    const useRow = sheet.addRow({ date: '이번 달 사용', duration: `−${fmtDuration(monthUseMins)}` });
+    const balRow = sheet.addRow({ date: '누적 잔여', duration: fmtDuration(balance) });
+    [earnRow, useRow, balRow].forEach(r => {
+      r.font = { bold: true };
+      r.alignment = { vertical: 'middle', horizontal: 'center' };
     });
-    totalRow.font = { bold: true };
-    totalRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -766,38 +919,67 @@ document.getElementById("nextMonth").addEventListener("click", () => {
 // ───────────────────────────────────────────
 // 렌더
 // ───────────────────────────────────────────
+function recordType(r) {
+  return r.type === 'use' ? 'use' : 'earn';
+}
+
 function render() {
   const y = viewMonth.getFullYear();
   const m = viewMonth.getMonth();
   document.getElementById("currentMonth").textContent = `${y}.${String(m+1).padStart(2,'0')}`;
 
-  // 이번 달 기록만 필터
+  // 이번 달 기록만 필터 (적립/사용 모두 포함)
   const monthRecords = Object.entries(records)
     .map(([id, r]) => ({ id, ...r }))
     .filter(r => {
-      const d = new Date(r.start);
-      return d.getFullYear() === y && d.getMonth() === m;
-    })
-    .sort((a, b) => new Date(b.start) - new Date(a.start));
+      if (!r.date) return false;
+      const [yy, mm] = r.date.split('-').map(Number);
+      return yy === y && (mm - 1) === m;
+    });
 
-  // 합계
-  const totalMins = monthRecords.reduce((sum, r) => sum + (r.overtimeMinutes || 0), 0);
+  // 이번 달 합계
+  const monthEarnMins = monthRecords
+    .filter(r => recordType(r) === 'earn')
+    .reduce((sum, r) => sum + (r.overtimeMinutes || 0), 0);
+  const monthUseMins = monthRecords
+    .filter(r => recordType(r) === 'use')
+    .reduce((sum, r) => sum + (r.usedMinutes || 0), 0);
   const totalReceipts = monthRecords.filter(r => r.receipt).length;
-  document.getElementById("sumOvertime").textContent = (totalMins / 60).toFixed(1);
+
+  // 누적 잔여 (전체 기간)
+  const allList = Object.values(records);
+  const allEarnMins = allList
+    .filter(r => recordType(r) === 'earn')
+    .reduce((sum, r) => sum + (r.overtimeMinutes || 0), 0);
+  const allUseMins = allList
+    .filter(r => recordType(r) === 'use')
+    .reduce((sum, r) => sum + (r.usedMinutes || 0), 0);
+  const balanceMins = allEarnMins - allUseMins;
+
+  document.getElementById("sumEarn").textContent = (monthEarnMins / 60).toFixed(1);
+  document.getElementById("sumUse").textContent = (monthUseMins / 60).toFixed(1);
+  document.getElementById("sumBalance").textContent = (balanceMins / 60).toFixed(1);
   document.getElementById("sumReceipts").textContent = totalReceipts;
 
   // 로그 리스트
   const list = document.getElementById("logList");
   if (monthRecords.length === 0) {
-    list.innerHTML = '<div class="log-empty">이 달에 기록된 추가근무가 없습니다.</div>';
+    list.innerHTML = '<div class="log-empty">이 달에 기록된 내역이 없습니다.</div>';
     return;
   }
 
-  // 날짜별 그룹핑
+  // 날짜별 그룹핑 후 같은 날 내에서는 시작 시간(없으면 createdAt) 내림차순
   const byDate = {};
   monthRecords.forEach(r => {
     if (!byDate[r.date]) byDate[r.date] = [];
     byDate[r.date].push(r);
+  });
+  Object.keys(byDate).forEach(date => {
+    byDate[date].sort((a, b) => {
+      const at = a.start ? new Date(a.start).getTime() : (a.createdAt || 0);
+      const bt = b.start ? new Date(b.start).getTime() : (b.createdAt || 0);
+      return bt - at;
+    });
   });
   const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
 
@@ -827,7 +1009,28 @@ function render() {
   });
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 function renderLogItem(r) {
+  if (recordType(r) === 'use') {
+    const memoLine = r.memo
+      ? `<div class="log-memo">${escapeHtml(r.memo)}</div>`
+      : '';
+    return `
+      <div class="log-item">
+        <div class="log-time">
+          <div class="log-time-range use-label">사용</div>
+          <div class="log-overtime use">−${fmtDuration(r.usedMinutes || 0)}</div>
+          ${memoLine}
+        </div>
+        <button class="log-delete" data-delete="${r.id}" title="삭제">×</button>
+      </div>
+    `;
+  }
   const overtimeText = r.overtimeMinutes > 0
     ? `<div class="log-overtime">+${fmtDuration(r.overtimeMinutes)}</div>`
     : `<div class="log-overtime regular">정규시간 내</div>`;
