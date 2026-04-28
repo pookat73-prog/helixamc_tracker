@@ -301,6 +301,7 @@
         <div><span class="summary-value" id="sumReceipts">0</span><span class="summary-unit">건</span></div>
       </div>
     </div>
+    <button class="secondary-btn" id="exportBtn">엑셀로 내보내기</button>
   </div>
 
   <!-- 로그 -->
@@ -628,6 +629,127 @@ document.getElementById("removeReceipt").addEventListener("click", () => {
     editingReceiptId = null;
   }
 });
+
+// ───────────────────────────────────────────
+// 엑셀 내보내기
+// ───────────────────────────────────────────
+let excelJSPromise = null;
+function loadExcelJS() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (excelJSPromise) return excelJSPromise;
+  excelJSPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    script.onload = () => resolve(window.ExcelJS);
+    script.onerror = () => {
+      excelJSPromise = null;
+      reject(new Error('ExcelJS 로드 실패'));
+    };
+    document.head.appendChild(script);
+  });
+  return excelJSPromise;
+}
+
+async function exportToExcel() {
+  const btn = document.getElementById('exportBtn');
+  const y = viewMonth.getFullYear();
+  const m = viewMonth.getMonth();
+
+  const monthRecords = Object.entries(records)
+    .map(([id, r]) => ({ id, ...r }))
+    .filter(r => {
+      const d = new Date(r.start);
+      return d.getFullYear() === y && d.getMonth() === m;
+    })
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+  if (monthRecords.length === 0) {
+    alert('이 달에 내보낼 기록이 없습니다.');
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '내보내는 중…';
+
+  try {
+    const ExcelJS = await loadExcelJS();
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(`${y}-${String(m+1).padStart(2,'0')}`);
+
+    sheet.columns = [
+      { header: '날짜', key: 'date', width: 12 },
+      { header: '요일', key: 'day', width: 6 },
+      { header: '시작', key: 'start', width: 8 },
+      { header: '종료', key: 'end', width: 8 },
+      { header: '추가근무', key: 'overtime', width: 14 },
+      { header: '영수증', key: 'receipt', width: 14 },
+    ];
+
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    headerRow.height = 22;
+
+    let totalMins = 0;
+
+    for (const r of monthRecords) {
+      const row = sheet.addRow({
+        date: r.date,
+        day: DAY_NAMES[new Date(r.start).getDay()],
+        start: fmtTime(r.start),
+        end: fmtTime(r.end),
+        overtime: r.overtimeMinutes > 0 ? fmtDuration(r.overtimeMinutes) : '-',
+        receipt: '',
+      });
+      row.alignment = { vertical: 'middle', horizontal: 'center' };
+      totalMins += r.overtimeMinutes || 0;
+
+      if (r.receipt) {
+        try {
+          const imageId = workbook.addImage({
+            base64: r.receipt,
+            extension: 'jpeg',
+          });
+          row.height = 60;
+          sheet.addImage(imageId, {
+            tl: { col: 5, row: row.number - 1 },
+            ext: { width: 100, height: 75 },
+            editAs: 'oneCell',
+          });
+        } catch (e) {
+          console.error('이미지 삽입 실패:', e);
+        }
+      }
+    }
+
+    const totalRow = sheet.addRow({
+      date: '합계',
+      overtime: fmtDuration(totalMins),
+    });
+    totalRow.font = { bold: true };
+    totalRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `추가근무_${y}-${String(m+1).padStart(2,'0')}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error(e);
+    alert('내보내기에 실패했습니다. 잠시 후 다시 시도해주세요.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
 
 // ───────────────────────────────────────────
 // 월 이동
