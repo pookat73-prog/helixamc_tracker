@@ -3,7 +3,7 @@
   "name": "추가근무 기록",
   "short_name": "추가근무",
   "start_url": "worklog.html",
-  "scope": "./",
+  "scope": "worklog.html",
   "display": "standalone",
   "background_color": "#f4f7fb",
   "theme_color": "#0075d6",
