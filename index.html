@@ -213,31 +213,48 @@
   .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
   .filter-bar select,.filter-bar input{font-size:13px;padding:6px 10px}
   .ov-page{background:#fff;border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
-  .ov-page-head{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border-soft);background:#fafbfc}
+  .ov-page-head{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:#fafbfc}
   .ov-page-name{font-weight:700;font-size:15px;letter-spacing:-.01em;cursor:pointer;color:var(--text);text-decoration:none}
   .ov-page-name:hover{color:var(--primary)}
   .ov-page-name.empty{color:var(--text-light);font-weight:500}
   .ov-page-meta{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:160px}
   .ov-empty-row{padding:18px;color:var(--text-muted);font-size:13px;text-align:center}
   .ov-empty-row a{color:var(--primary);text-decoration:none;font-weight:600;cursor:pointer}
-  .ov-table{width:100%;border-collapse:collapse;table-layout:auto}
-  .ov-table th,.ov-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border-soft);font-size:13px;vertical-align:middle}
-  .ov-table tr:last-child td{border-bottom:none}
-  .ov-table th{background:var(--bg);font-weight:600;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
-  .ov-stage-h{text-align:center;font-size:10px;width:54px}
-  .ov-stage-cell{text-align:center;width:54px}
-  .ov-stage-cell input{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);padding:0;margin:0}
-  .ov-name-cell{min-width:160px}
-  .ov-section-name{font-weight:600;color:var(--text);text-decoration:none;cursor:pointer}
+  .ov-sec{border-top:1px solid var(--border-soft)}
+  .ov-sec:first-child{border-top:none}
+  .ov-sec-head{padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fcfcfd;border-bottom:1px solid var(--border-soft)}
+  .ov-sec-title{display:flex;align-items:center;gap:6px;min-width:160px;flex-shrink:0;flex-wrap:wrap}
+  .ov-section-name{font-weight:600;color:var(--text);text-decoration:none;cursor:pointer;font-size:14px}
   .ov-section-name:hover{color:var(--primary)}
   .ov-section-name.empty{color:var(--text-light);font-weight:500}
-  .ov-abbr{display:inline-block;background:var(--border-soft);color:var(--text-muted);font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;font-family:'SF Mono',Menlo,monospace}
-  .ov-prog-cell{width:140px;white-space:nowrap}
-  .ov-prog-cell .pbar{width:64px;display:inline-block;vertical-align:middle}
-  .ov-flag-cell{min-width:220px}
-  .ov-flag-cell .flag-picker{gap:3px}
-  .ov-flag-cell .flag-pill{font-size:10px;padding:2px 7px}
-  .ov-unit-cell{width:60px;color:var(--text-muted);font-size:12px}
+  .ov-abbr{display:inline-block;background:var(--border-soft);color:var(--text-muted);font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;font-family:'SF Mono',Menlo,monospace}
+  .ov-sec-stages{display:flex;gap:4px;flex-wrap:wrap}
+  .ov-stage-chk{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);cursor:pointer;padding:3px 8px;border-radius:99px;background:#fff;border:1px solid var(--border);user-select:none;white-space:nowrap;transition:all .12s}
+  .ov-stage-chk:hover{border-color:var(--text-muted)}
+  .ov-stage-chk.on{background:var(--primary-soft);color:var(--primary);border-color:transparent;font-weight:600}
+  .ov-stage-chk input{width:0;height:0;opacity:0;position:absolute;pointer-events:none}
+  .ov-sec-pct{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .ov-sec-pct .pbar{width:64px}
+  .ov-sec-flags{flex-shrink:0}
+  .ov-sec-flags .flag-picker{gap:3px}
+  .ov-sec-flags .flag-pill{font-size:10px;padding:2px 7px}
+  .ov-sec-spacer{flex:1;min-width:8px}
+  .ov-sec-empty{padding:14px 18px;color:var(--text-muted);font-size:12px;font-style:italic;background:#fff}
+  .ov-elem-list{padding:6px 16px;background:#fff}
+  .ov-elem{padding:10px 4px;border-bottom:1px dashed var(--border-soft)}
+  .ov-elem:last-child{border-bottom:none}
+  .ov-elem-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ov-elem-label{flex:1;min-width:120px;font-size:13px;font-weight:500;color:var(--text)}
+  .ov-elem-label.empty{color:var(--text-light);font-weight:400}
+  .ov-elem-meta{padding:4px 0 0 4px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .ov-elem-meta a{color:var(--primary);text-decoration:none;word-break:break-all}
+  .ov-ix-list{margin-top:8px;padding:6px 10px;background:#fafbfc;border-radius:var(--r-xs);border:1px solid var(--border-soft)}
+  .ov-ix-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;flex-wrap:wrap}
+  .ov-ix-row+.ov-ix-row{border-top:1px dashed var(--border-soft)}
+  .ov-ix-bullet{font-size:11px;color:var(--warning);flex-shrink:0}
+  .ov-ix-summary{flex:1;min-width:200px;line-height:1.5}
+  .ov-ix-summary strong{color:var(--text);font-weight:600}
+  .ov-ix-summary .muted{font-size:11px}
   .ix-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);padding:14px}
   .ix-card-head{display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:8px}
   .ix-card-loc{font-size:11px;color:var(--text-muted);font-weight:600}
@@ -728,17 +745,44 @@ function renderIxSummary(ix){
   return h+`</div>`;
 }
 
+function ovIxLine(ix){
+  const params=ix.params||{};
+  const aFields=ACTION_FIELDS[ix.action]||[];
+  const filled=aFields.filter(f=>{const v=params[f.key];return f.type==='checkbox'?!!v:v!==undefined&&v!==''&&v!==null;});
+  const head=[];
+  if(ix.trigger) head.push(esc(ix.trigger));
+  if(ix.action) head.push(`<strong>${esc(ix.action)}</strong>`);
+  let line=head.join(' <span class="muted">→</span> ')||'<span class="muted">(설정 없음)</span>';
+  const meta=[];
+  if(ix.duration) meta.push(`${esc(ix.duration)}s`);
+  if(ix.delay&&String(ix.delay)!=='0') meta.push(`지연 ${esc(ix.delay)}s`);
+  if(ix.device&&ix.device!=='둘다') meta.push(esc(ix.device));
+  filled.slice(0,4).forEach(f=>{
+    const v=params[f.key];
+    meta.push(`${esc(f.label)} ${f.type==='checkbox'?'✓':esc(String(v))}`);
+  });
+  if(meta.length) line+=` <span class="muted">· ${meta.join(' · ')}</span>`;
+  if(ix.memo){
+    const m=ix.memo.replace(/\s+/g,' ').trim();
+    if(m) line+=` <span class="muted">· 📝 ${esc(m.slice(0,40))}${m.length>40?'…':''}</span>`;
+  }
+  return line;
+}
+
 function renderOverview(){
   const stages=SECTION_STAGES;
-  let totalSec=0;
-  state.pages.forEach(p=>totalSec+=(p.sections||[]).length);
-  let h=`<div class="page-head"><div><h2>페이지 모아보기</h2><div class="sub">페이지 ${state.pages.length}개 · 섹션 ${totalSec}개</div></div></div>`;
+  let totalSec=0,totalElem=0,totalIx=0;
+  state.pages.forEach(p=>(p.sections||[]).forEach(s=>{
+    totalSec++;
+    (s.elements||[]).forEach(e=>{totalElem++;totalIx+=(e.ixs||[]).length;});
+  }));
+  let h=`<div class="page-head"><div><h2>페이지 모아보기</h2><div class="sub">페이지 ${state.pages.length}개 · 섹션 ${totalSec}개 · 유닛 ${totalElem}개 · 인터랙션 ${totalIx}개</div></div></div>`;
   if(!state.pages.length) return h+`<div class="card empty"><div class="empty-icon">📋</div><div class="empty-msg">페이지를 먼저 추가해주세요.</div><button class="btn btn-primary" data-act="goto-pages">페이지 추가하러 가기</button></div>`;
   h+=`<div class="filter-bar">
     <select id="ov-filter-page"><option value="all">전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}">${esc(p.name||'(이름 없음)')}</option>`).join('')}</select>
     <select id="ov-filter-progress"><option value="all">전체 진행률</option><option value="incomplete">미완료만</option><option value="complete">완료만</option></select>
     <select id="ov-filter-flag"><option value="all">전체 플래그</option>${FLAGS.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
-    <input id="ov-filter-search" placeholder="섹션 이름·약자 검색..." style="flex:1;min-width:160px"/>
+    <input id="ov-filter-search" placeholder="검색 (섹션·유닛·인터랙션)" style="flex:1;min-width:160px"/>
   </div>
   <div id="ov-list">`;
   state.pages.forEach(p=>{
@@ -763,32 +807,69 @@ function renderOverview(){
     if(!sections.length){
       h+=`<div class="ov-empty-row">섹션 없음 · <a data-act="open-page" data-id="${p.id}">추가하러 가기 →</a></div>`;
     } else {
-      h+=`<table class="ov-table"><thead><tr>
-        <th class="ov-name-cell">섹션</th>
-        ${stages.map(st=>`<th class="ov-stage-h" title="${esc(st)}">${esc(st)}</th>`).join('')}
-        <th class="ov-prog-cell">진행률</th>
-        <th class="ov-flag-cell">플래그</th>
-        <th class="ov-unit-cell">유닛</th>
-        <th></th>
-      </tr></thead><tbody>`;
       sections.forEach(s=>{
         const sc=calcSection(s);
         const sFlags=s.flags||[];
-        const elemCount=(s.elements||[]).length;
-        const searchData=`${(s.name||'').toLowerCase()} ${(s.abbr||'').toLowerCase()}`;
+        const elements=s.elements||[];
         const isComplete=sc.pct===100;
-        h+=`<tr class="ov-row" data-pid="${p.id}" data-sid="${s.id}" data-search="${esc(searchData)}" data-flags="${esc(sFlags.join('|'))}" data-complete="${isComplete?'1':'0'}">
-          <td class="ov-name-cell">
-            <a class="ov-section-name${s.name?'':' empty'}" data-act="goto-section" data-pid="${p.id}" data-sid="${s.id}">${s.name?esc(s.name):'(이름 없음)'}</a>${s.abbr?`<span class="ov-abbr">${esc(s.abbr.toUpperCase())}</span>`:''}
-          </td>
-          ${stages.map(st=>`<td class="ov-stage-cell"><input type="checkbox" data-act="toggle-section-stage" data-pid="${p.id}" data-sid="${s.id}" data-key="${st}" ${s.stages&&s.stages[st]?'checked':''} title="${esc(st)}"/></td>`).join('')}
-          <td class="ov-prog-cell"><div class="pbar"><div class="pbar-fill ${isComplete?'full':''}" style="width:${sc.pct}%"></div></div> <span style="font-weight:600;font-size:12px">${sc.pct}%</span></td>
-          <td class="ov-flag-cell"><div class="flag-picker">${FLAGS.map(f=>{const on=sFlags.includes(f);return`<button class="flag-pill ${on?'on flag '+FLAG_CLS[f]:''}" title="${esc(FLAG_DEFS[f])}" data-act="toggle-section-flag" data-pid="${p.id}" data-sid="${s.id}" data-flag="${f}">${f}</button>`;}).join('')}</div></td>
-          <td class="ov-unit-cell">${elemCount}개</td>
-          <td><button class="btn btn-ghost btn-sm" data-act="goto-section" data-pid="${p.id}" data-sid="${s.id}">편집 →</button></td>
-        </tr>`;
+        const searchTerms=[s.name||'',s.abbr||''];
+        elements.forEach(e=>{
+          searchTerms.push(e.label||'',e.assetPath||'',e.effect||'',e.status||'');
+          (e.ixs||[]).forEach(ix=>searchTerms.push(ix.action||'',ix.trigger||'',ix.memo||'',ix.status||''));
+        });
+        h+=`<div class="ov-sec" data-pid="${p.id}" data-sid="${s.id}" data-search="${esc(searchTerms.join(' ').toLowerCase())}" data-flags="${esc(sFlags.join('|'))}" data-complete="${isComplete?'1':'0'}">
+          <div class="ov-sec-head">
+            <div class="ov-sec-title">
+              <a class="ov-section-name${s.name?'':' empty'}" data-act="goto-section" data-pid="${p.id}" data-sid="${s.id}">${s.name?esc(s.name):'(이름 없음)'}</a>${s.abbr?`<span class="ov-abbr">${esc(s.abbr.toUpperCase())}</span>`:''}
+            </div>
+            <div class="ov-sec-stages">
+              ${stages.map(st=>{const on=!!(s.stages&&s.stages[st]);return`<label class="ov-stage-chk ${on?'on':''}"><input type="checkbox" data-act="toggle-section-stage" data-pid="${p.id}" data-sid="${s.id}" data-key="${st}" ${on?'checked':''}/><span>${esc(st)}</span></label>`;}).join('')}
+            </div>
+            <div class="ov-sec-pct"><div class="pbar"><div class="pbar-fill ${isComplete?'full':''}" style="width:${sc.pct}%"></div></div><span style="font-weight:700;font-size:12px;min-width:32px;text-align:right">${sc.pct}%</span></div>
+            <div class="ov-sec-spacer"></div>
+            <div class="ov-sec-flags"><div class="flag-picker">${FLAGS.map(f=>{const on=sFlags.includes(f);return`<button class="flag-pill ${on?'on flag '+FLAG_CLS[f]:''}" title="${esc(FLAG_DEFS[f])}" data-act="toggle-section-flag" data-pid="${p.id}" data-sid="${s.id}" data-flag="${f}">${f}</button>`;}).join('')}</div></div>
+            <button class="btn btn-ghost btn-sm" data-act="goto-section" data-pid="${p.id}" data-sid="${s.id}">편집 →</button>
+          </div>`;
+        if(!elements.length){
+          h+=`<div class="ov-sec-empty">유닛 없음</div>`;
+        } else {
+          h+=`<div class="ov-elem-list">`;
+          elements.forEach(e=>{
+            const id=elemDisplayId(p,s,e);
+            const typeLabel=e.type==='text'?'유닛':e.type==='image'?'이미지/영상':'오브젝트';
+            const eStCls=e.status?ELEM_STATUS_CLS[e.status]:'elem-status-empty';
+            h+=`<div class="ov-elem">
+              <div class="ov-elem-head">
+                <span class="elem-type-badge elem-type-${e.type}">${typeLabel}</span>
+                ${id?`<span class="elem-id">${esc(id)}</span>`:''}
+                <span class="ov-elem-label${e.label?'':' empty'}">${e.label?esc(e.label):'(설명 없음)'}</span>
+                <select class="elem-status-select ${eStCls}" data-act="set-elem-status" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}"><option value="" ${!e.status?'selected':''}>미정</option>${ELEM_STATUSES.map(st=>`<option value="${st}" ${e.status===st?'selected':''}>${st}</option>`).join('')}</select>
+              </div>`;
+            if(isAsset(e)&&e.assetPath){
+              h+=`<div class="ov-elem-meta"><span>📁</span><a href="${esc(e.assetPath)}" target="_blank">${esc(e.assetPath)} ↗</a></div>`;
+            }
+            if(e.effect){
+              h+=`<div class="ov-elem-meta"><span>✨</span><span style="color:var(--text)">${esc(e.effect)}</span></div>`;
+            }
+            const ixs=e.ixs||[];
+            if(ixs.length){
+              h+=`<div class="ov-ix-list">`;
+              ixs.forEach(ix=>{
+                const stCls=ix.status?IX_STATUS_CLS[ix.status]:'ix-status-empty';
+                h+=`<div class="ov-ix-row">
+                  <span class="ov-ix-bullet">⚡</span>
+                  <div class="ov-ix-summary">${ovIxLine(ix)}</div>
+                  <select class="ix-status-select ${stCls}" data-act="set-ix-status" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}"><option value="" ${!ix.status?'selected':''}>미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ix.status===st?'selected':''}>${st}</option>`).join('')}</select>
+                </div>`;
+              });
+              h+=`</div>`;
+            }
+            h+=`</div>`;
+          });
+          h+=`</div>`;
+        }
+        h+=`</div>`;
       });
-      h+=`</tbody></table>`;
     }
     h+=`</div>`;
   });
@@ -899,18 +980,18 @@ function applyOverviewFilters(){
   document.querySelectorAll('#ov-list>.ov-page').forEach(box=>{
     const pid=box.dataset.pid;
     if(pg!=='all'&&pid!==pg){box.style.display='none';return;}
-    const rows=box.querySelectorAll('tbody>tr.ov-row');
+    const secs=box.querySelectorAll(':scope>.ov-sec');
     let any=false;
-    rows.forEach(tr=>{
+    secs.forEach(sec=>{
       let show=true;
-      if(pr==='complete'&&tr.dataset.complete!=='1')show=false;
-      if(pr==='incomplete'&&tr.dataset.complete==='1')show=false;
-      if(fl!=='all'){const fs=(tr.dataset.flags||'').split('|').filter(Boolean);if(!fs.includes(fl))show=false;}
-      if(sr&&!tr.dataset.search.includes(sr))show=false;
-      tr.style.display=show?'':'none';
+      if(pr==='complete'&&sec.dataset.complete!=='1')show=false;
+      if(pr==='incomplete'&&sec.dataset.complete==='1')show=false;
+      if(fl!=='all'){const fs=(sec.dataset.flags||'').split('|').filter(Boolean);if(!fs.includes(fl))show=false;}
+      if(sr&&!sec.dataset.search.includes(sr))show=false;
+      sec.style.display=show?'':'none';
       if(show)any=true;
     });
-    box.style.display=(rows.length>0&&!any)?'none':'';
+    box.style.display=(secs.length>0&&!any)?'none':'';
   });
 }
 function applyIxFilters(){
