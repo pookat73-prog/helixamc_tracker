@@ -280,6 +280,25 @@
   .reorder button{font-size:10px;padding:0 4px;color:var(--text-light);line-height:1;background:transparent;border:none}
   .reorder button:hover{color:var(--text)}
   .reorder button:disabled{opacity:.3;cursor:default}
+  .priority-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
+  .priority-높음{background:#fee2e2;color:#991b1b}
+  .priority-보통{background:#e0e7ff;color:#3730a3}
+  .priority-낮음{background:#f3f4f6;color:#6b7280}
+  .priority-select{font-size:11px;font-weight:700;padding:3px 22px 3px 9px;border-radius:99px;border:1px solid var(--border);cursor:pointer}
+  .priority-select.priority-높음{border-color:#ef4444;background:#fee2e2;color:#991b1b}
+  .priority-select.priority-보통{border-color:#6366f1;background:#e0e7ff;color:#3730a3}
+  .priority-select.priority-낮음{border-color:#9ca3af;background:#f3f4f6;color:#6b7280}
+  .page-group{margin-bottom:28px}
+  .page-group:last-child{margin-bottom:0}
+  .page-group-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 4px;flex-wrap:wrap}
+  .page-group-title{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+  .page-group-count{font-size:11px;color:var(--text-muted);background:var(--border-soft);padding:2px 9px;border-radius:99px;font-weight:600}
+  .page-group-dday{font-size:11px;font-weight:700;color:var(--primary)}
+  .page-group-dday.past{color:var(--danger)}
+  .page-card-actions{display:flex;align-items:center;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);flex-wrap:wrap}
+  .page-card-actions .reorder{flex-direction:row}
+  .page-card-actions .reorder button{font-size:11px;padding:2px 6px}
+  .page-card-actions .spacer{flex:1}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
   .modal-bg.hidden{display:none}
   .modal{background:#fff;border-radius:var(--r);padding:24px;max-width:400px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2)}
@@ -364,6 +383,10 @@ const IX_STATUSES = ['구현중','구현 완료','점검완료'];
 const IX_STATUS_CLS = {'구현중':'ix-status-doing','구현 완료':'ix-status-impl','점검완료':'ix-status-verified'};
 const IX_STATUS_DONE = new Set(['구현 완료','점검완료']);
 function ixIsDone(ix){return IX_STATUS_DONE.has(ix.status);}
+const PRIORITIES = ['높음','보통','낮음'];
+const PRIORITY_CLS = {'높음':'priority-높음','보통':'priority-보통','낮음':'priority-낮음'};
+const PRIORITY_ORDER = {'높음':0,'보통':1,'낮음':2};
+const DEFAULT_PRIORITY = '보통';
 const ELEM_STATUSES = ['제작중','미확정','확정'];
 const ELEM_STATUS_CLS = {'제작중':'elem-status-doing','미확정':'elem-status-pending','확정':'elem-status-final'};
 const ELEM_STATUS_DONE = new Set(['확정']);
@@ -403,6 +426,7 @@ async function load(){
     if(!p.checks) p.checks={};
     PAGE_TASKS.forEach(k=>{if(p.checks[k]===undefined)p.checks[k]=false;});
     if(!p.flags) p.flags=[];
+    if(!p.priority||!PRIORITY_ORDER.hasOwnProperty(p.priority)) p.priority=DEFAULT_PRIORITY;
     if(!p.sections) p.sections=[];
     p.sections.forEach(s=>{
       if(!s.stages) s.stages={};
@@ -434,6 +458,54 @@ async function save(){
   catch(e){console.error('Save failed',e);}
 }
 function uid(){return Math.random().toString(36).slice(2,10);}
+function clonePage(p){
+  const np=JSON.parse(JSON.stringify(p));
+  np.id=uid();
+  np.name=(p.name||'')+' (복사본)';
+  (np.sections||[]).forEach(s=>{
+    s.id=uid();
+    (s.elements||[]).forEach(e=>{
+      e.id=uid();
+      (e.ixs||[]).forEach(ix=>{ix.id=uid();});
+    });
+  });
+  return np;
+}
+function cloneSection(s){
+  const ns=JSON.parse(JSON.stringify(s));
+  ns.id=uid();
+  ns.name=(s.name||'')+' (복사본)';
+  (ns.elements||[]).forEach(e=>{
+    e.id=uid();
+    (e.ixs||[]).forEach(ix=>{ix.id=uid();});
+  });
+  return ns;
+}
+function priOrder(p){return PRIORITY_ORDER[p.priority||DEFAULT_PRIORITY];}
+function pageStageGroups(){
+  const stages=[...(state.meta.stages||[]),'(미지정)'];
+  const groups={};
+  stages.forEach(st=>groups[st]=[]);
+  state.pages.forEach((p,idx)=>{
+    const r=p.release||'(미지정)';
+    if(!groups[r])groups[r]=[];
+    groups[r].push({page:p,idx});
+  });
+  return{stages,groups};
+}
+function movePageInStage(pid,dir){
+  const p=findPage(pid);if(!p)return false;
+  const release=p.release||'';
+  const sameIdx=[];
+  state.pages.forEach((pg,i)=>{if((pg.release||'')===release)sameIdx.push(i);});
+  const myArrIdx=state.pages.indexOf(p);
+  const pos=sameIdx.indexOf(myArrIdx);
+  const np=dir==='up'?pos-1:pos+1;
+  if(np<0||np>=sameIdx.length)return false;
+  const i=sameIdx[pos],j=sameIdx[np];
+  [state.pages[i],state.pages[j]]=[state.pages[j],state.pages[i]];
+  return true;
+}
 
 // ============== CALC ==============
 function isAsset(e){return e.type==='image'||e.type==='object';}
@@ -538,7 +610,7 @@ function renderDashboard(){
   const byStage={};
   (state.meta.stages||[]).forEach(s=>byStage[s]=[]);
   byStage['(미지정)']=[];
-  state.pages.forEach(p=>{const r=p.release||'(미지정)';if(!byStage[r])byStage[r]=[];byStage[r].push({...p,_c:calcPage(p)});});
+  state.pages.forEach((p,_idx)=>{const r=p.release||'(미지정)';if(!byStage[r])byStage[r]=[];byStage[r].push({...p,_c:calcPage(p),_idx});});
   const flagCount={};FLAGS.forEach(f=>flagCount[f]=0);
   state.pages.forEach(p=>{(p.flags||[]).forEach(f=>flagCount[f]=(flagCount[f]||0)+1);(p.sections||[]).forEach(s=>(s.flags||[]).forEach(f=>flagCount[f]=(flagCount[f]||0)+1));});
 
@@ -570,8 +642,13 @@ function renderDashboard(){
     h+=`<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:14px"><h3 style="font-size:15px;font-weight:700">출시 단계별 페이지</h3><button class="btn btn-soft btn-sm" data-act="goto-pages">관리</button></div>`;
     stagesToShow.forEach(st=>{
       h+=`<div style="margin-bottom:18px"><div class="muted small" style="font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">${esc(st)} · ${byStage[st].length}개</div>`;
-      byStage[st].sort((x,y)=>x._c.pct-y._c.pct).forEach(p=>{
-        h+=`<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;margin-bottom:5px"><span style="font-weight:600${p.name?'':';color:var(--text-light)'}">${p.name?esc(p.name):'(이름 없음)'}</span><span class="row gap-8 small"><span class="muted">${p._c.done}/${p._c.total}</span><span style="font-weight:700">${p._c.pct}%</span></span></div><div class="pbar"><div class="pbar-fill ${p._c.pct===100?'full':''}" style="width:${p._c.pct}%"></div></div></div>`;
+      byStage[st].sort((x,y)=>{
+        const dp=priOrder(x)-priOrder(y);
+        if(dp!==0) return dp;
+        return x._idx-y._idx;
+      }).forEach(p=>{
+        const pri=p.priority||DEFAULT_PRIORITY;
+        h+=`<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between;margin-bottom:5px"><span class="row gap-8" style="font-weight:600${p.name?'':';color:var(--text-light)'}">${p.name?esc(p.name):'(이름 없음)'}<span class="priority-badge ${PRIORITY_CLS[pri]}">${pri==='높음'?'⬆':pri==='낮음'?'⬇':'•'} ${pri}</span></span><span class="row gap-8 small"><span class="muted">${p._c.done}/${p._c.total}</span><span style="font-weight:700">${p._c.pct}%</span></span></div><div class="pbar"><div class="pbar-fill ${p._c.pct===100?'full':''}" style="width:${p._c.pct}%"></div></div></div>`;
       });
       h+=`</div>`;
     });
@@ -583,20 +660,59 @@ function renderDashboard(){
 }
 
 function renderPagesList(){
-  let h=`<div class="page-head"><div><h2>페이지 관리</h2><div class="sub">페이지 ${state.pages.length}개</div></div><button class="btn btn-primary" data-act="add-page">+ 페이지 추가</button></div>`;
+  let h=`<div class="page-head"><div><h2>페이지 관리</h2><div class="sub">페이지 ${state.pages.length}개 · 우선순위순 정렬 · 단계별 그룹</div></div><button class="btn btn-primary" data-act="add-page">+ 페이지 추가</button></div>`;
   if(!state.pages.length) return h+`<div class="card empty"><div class="empty-icon">📄</div><div class="empty-msg">첫 페이지를 추가해보세요.</div><button class="btn btn-primary" data-act="add-page">+ 페이지 추가</button></div>`;
-  h+=`<div class="grid grid-3">`;
-  state.pages.forEach(p=>{
-    const c=calcPage(p),undone=c.total-c.done;
-    h+=`<div class="card page-card" data-act="open-page" data-id="${p.id}">
-      <div class="page-card-head"><div><div class="page-card-title${p.name?'':' empty'}">${p.name?esc(p.name):'(이름 없음)'}</div>${p.abbr?`<div class="page-card-abbr">${esc(p.abbr.toUpperCase())}</div>`:''}</div><span class="release-tag ${p.release?'':'empty'}">${esc(p.release||'미지정')}</span></div>
-      <div class="row" style="justify-content:space-between;margin-bottom:5px"><span class="muted small">진행률</span><span style="font-weight:700">${c.pct}%</span></div>
-      <div class="pbar"><div class="pbar-fill ${c.pct===100?'full':''}" style="width:${c.pct}%"></div></div>
-      <div class="page-card-meta"><span>섹션 ${(p.sections||[]).length}개</span><span>·</span><span>${c.done}/${c.total}</span>${undone>0?`<span>·</span><span style="color:var(--warning)">미완 ${undone}</span>`:''}</div>
-      ${(p.flags||[]).length?`<div class="flag-row" style="margin-top:8px">${(p.flags||[]).map(f=>`<span class="flag ${FLAG_CLS[f]}" title="${esc(FLAG_DEFS[f])}">${f}</span>`).join('')}</div>`:''}
-    </div>`;
+  const{stages,groups}=pageStageGroups();
+  const dates=state.meta.dates||{};
+  stages.forEach(st=>{
+    const items=groups[st]||[];
+    if(!items.length) return;
+    items.sort((a,b)=>{
+      const dp=priOrder(a.page)-priOrder(b.page);
+      if(dp!==0) return dp;
+      return a.idx-b.idx;
+    });
+    const dd=ddayText(dates[st]);
+    h+=`<div class="page-group">
+      <div class="page-group-head">
+        <span class="page-group-title">${esc(st)}</span>
+        <span class="page-group-count">${items.length}개</span>
+        ${dd?`<span class="page-group-dday ${dd.past?'past':''}">${dd.text}</span>`:''}
+      </div>
+      <div class="grid grid-3">`;
+    items.forEach((it,i)=>{
+      const p=it.page,c=calcPage(p),undone=c.total-c.done;
+      const pri=p.priority||DEFAULT_PRIORITY;
+      const isFirst=i===0,isLast=i===items.length-1;
+      h+=`<div class="card page-card" data-act="open-page" data-id="${p.id}">
+        <div class="page-card-head">
+          <div style="flex:1;min-width:0">
+            <div class="page-card-title${p.name?'':' empty'}">${p.name?esc(p.name):'(이름 없음)'}</div>
+            ${p.abbr?`<div class="page-card-abbr">${esc(p.abbr.toUpperCase())}</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+            <span class="release-tag ${p.release?'':'empty'}">${esc(p.release||'미지정')}</span>
+            <span class="priority-badge ${PRIORITY_CLS[pri]}" title="우선순위 ${pri}">${pri==='높음'?'⬆':pri==='낮음'?'⬇':'•'} ${pri}</span>
+          </div>
+        </div>
+        <div class="row" style="justify-content:space-between;margin-bottom:5px"><span class="muted small">진행률</span><span style="font-weight:700">${c.pct}%</span></div>
+        <div class="pbar"><div class="pbar-fill ${c.pct===100?'full':''}" style="width:${c.pct}%"></div></div>
+        <div class="page-card-meta"><span>섹션 ${(p.sections||[]).length}개</span><span>·</span><span>${c.done}/${c.total}</span>${undone>0?`<span>·</span><span style="color:var(--warning)">미완 ${undone}</span>`:''}</div>
+        ${(p.flags||[]).length?`<div class="flag-row" style="margin-top:8px">${(p.flags||[]).map(f=>`<span class="flag ${FLAG_CLS[f]}" title="${esc(FLAG_DEFS[f])}">${f}</span>`).join('')}</div>`:''}
+        <div class="page-card-actions" data-act="card-noop">
+          <select class="priority-select ${PRIORITY_CLS[pri]}" data-act="set-page-priority" data-id="${p.id}" title="우선순위">${PRIORITIES.map(pr=>`<option value="${pr}" ${pri===pr?'selected':''}>${pr}</option>`).join('')}</select>
+          <button class="btn-icon" data-act="dup-page" data-id="${p.id}" title="복제">⎘</button>
+          <span class="spacer" data-act="card-noop"></span>
+          <div class="reorder">
+            <button data-act="move-page-up" data-id="${p.id}" ${isFirst?'disabled':''} title="위로">▲</button>
+            <button data-act="move-page-down" data-id="${p.id}" ${isLast?'disabled':''} title="아래로">▼</button>
+          </div>
+        </div>
+      </div>`;
+    });
+    h+=`</div></div>`;
   });
-  return h+`</div>`;
+  return h;
 }
 
 function renderPageDetail(p){
@@ -610,9 +726,11 @@ function renderPageDetail(p){
         <label>약자</label><input class="abbr-input" inputmode="latin" autocapitalize="characters" lang="en" data-act="edit-page-abbr" data-id="${p.id}" value="${esc(p.abbr||'')}" placeholder="MAIN" maxlength="8"/>
         <label style="margin-left:8px">출시</label>
         <select data-act="edit-page-release" data-id="${p.id}"><option value="">미지정</option>${stages.map(r=>`<option value="${esc(r)}" ${p.release===r?'selected':''}>${esc(r)}</option>`).join('')}</select>
+        <label style="margin-left:8px">우선순위</label>
+        <select class="priority-select ${PRIORITY_CLS[p.priority||DEFAULT_PRIORITY]}" data-act="set-page-priority" data-id="${p.id}">${PRIORITIES.map(pr=>`<option value="${pr}" ${(p.priority||DEFAULT_PRIORITY)===pr?'selected':''}>${pr}</option>`).join('')}</select>
       </div>
     </div>
-    <div style="text-align:right"><div style="font-size:24px;font-weight:700">${c.pct}%</div><div class="muted small">${c.done}/${c.total}</div><button class="btn btn-danger btn-sm" data-act="del-page" data-id="${p.id}" style="margin-top:8px">삭제</button></div>
+    <div style="text-align:right"><div style="font-size:24px;font-weight:700">${c.pct}%</div><div class="muted small">${c.done}/${c.total}</div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-soft btn-sm" data-act="dup-page" data-id="${p.id}">⎘ 복제</button><button class="btn btn-danger btn-sm" data-act="del-page" data-id="${p.id}">삭제</button></div></div>
   </div>
   <div class="pbar" style="margin-bottom:16px"><div class="pbar-fill ${c.pct===100?'full':''}" style="width:${c.pct}%"></div></div>
   <div style="margin-bottom:8px"><div class="muted small" style="margin-bottom:6px;font-weight:600">상태 플래그</div>
@@ -637,6 +755,7 @@ function renderSection(p,s,si){
         <button data-act="move-section-up" data-pid="${p.id}" data-sid="${s.id}" ${si===0?'disabled':''}>▲</button>
         <button data-act="move-section-down" data-pid="${p.id}" data-sid="${s.id}" ${si===p.sections.length-1?'disabled':''}>▼</button>
       </div>
+      <button class="btn-icon" data-act="dup-section" data-pid="${p.id}" data-sid="${s.id}" title="섹션 복제">⎘</button>
       <button class="btn-icon" data-act="del-section" data-pid="${p.id}" data-sid="${s.id}">×</button>
     </div>`;
   if(open){
@@ -1047,10 +1166,14 @@ document.addEventListener('click',ev=>{
   if(act==='open-page'){selPage=t.dataset.id;view='pages';render();return;}
   if(act==='add-page'){
     const checks={};PAGE_TASKS.forEach(k=>checks[k]=false);
-    const p={id:uid(),name:'',abbr:'',release:'',flags:[],checks,sections:[]};
+    const p={id:uid(),name:'',abbr:'',release:'',priority:DEFAULT_PRIORITY,flags:[],checks,sections:[]};
     state.pages.push(p);save();selPage=p.id;render();return;
   }
   if(act==='del-page'){confirmDialog('이 페이지를 삭제하시겠어요?',()=>{state.pages=state.pages.filter(p=>p.id!==t.dataset.id);selPage=null;save();render();});return;}
+  if(act==='dup-page'){const p=findPage(t.dataset.id);if(!p)return;const np=clonePage(p);const i=state.pages.indexOf(p);state.pages.splice(i+1,0,np);save();selPage=np.id;render();return;}
+  if(act==='move-page-up'||act==='move-page-down'){if(movePageInStage(t.dataset.id,act==='move-page-up'?'up':'down')){save();render();}return;}
+  if(act==='dup-section'){const p=findPage(t.dataset.pid);if(!p)return;const i=(p.sections||[]).findIndex(s=>s.id===t.dataset.sid);if(i<0)return;const ns=cloneSection(p.sections[i]);p.sections.splice(i+1,0,ns);openSections.add(ns.id);save();render();return;}
+  if(act==='card-noop')return;
   if(act==='toggle-page-flag'){const p=findPage(t.dataset.id);if(!p)return;p.flags=p.flags||[];const f=t.dataset.flag;if(p.flags.includes(f))p.flags=p.flags.filter(x=>x!==f);else p.flags.push(f);save();render();return;}
   if(act==='toggle-section-flag'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.flags=s.flags||[];const f=t.dataset.flag;if(s.flags.includes(f))s.flags=s.flags.filter(x=>x!==f);else s.flags.push(f);save();render();return;}
   if(act==='add-section'){const p=findPage(t.dataset.id);if(!p)return;p.sections=p.sections||[];const stages={};SECTION_STAGES.forEach(k=>stages[k]=false);const s={id:uid(),name:'',abbr:'',flags:[],stages,elements:[]};p.sections.push(s);openSections.add(s.id);save();render();return;}
@@ -1083,7 +1206,8 @@ document.addEventListener('change',ev=>{
   if(act==='toggle-section-stage'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.stages=s.stages||{};s.stages[t.dataset.key]=t.checked;save();render();return;}
   if(act==='set-elem-status'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.status=t.value;save();render();return;}
   if(act==='set-ix-status'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(!ix)return;ix.status=t.value;save();render();return;}
-  if(act==='edit-page-release'){const p=findPage(t.dataset.id);if(!p)return;p.release=t.value;save();return;}
+  if(act==='edit-page-release'){const p=findPage(t.dataset.id);if(!p)return;p.release=t.value;save();render();return;}
+  if(act==='set-page-priority'){const p=findPage(t.dataset.id);if(!p)return;p.priority=t.value||DEFAULT_PRIORITY;save();render();return;}
   if(act==='set-meta'){state.meta[t.dataset.key]=t.value;save();render();return;}
   if(act==='set-stage-date'){const idx=parseInt(t.dataset.idx),name=state.meta.stages&&state.meta.stages[idx];if(!name)return;state.meta.dates=state.meta.dates||{};if(t.value)state.meta.dates[name]=t.value;else delete state.meta.dates[name];save();render();return;}
   if(act==='set-ix'&&t.dataset.key==='action'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(ix){ix.action=t.value;save();render();}return;}
