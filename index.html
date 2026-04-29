@@ -399,6 +399,7 @@ async function load(){
   if(!state.meta.dates) state.meta.dates={};
   if(state.meta.가오픈일){if(!state.meta.dates['가오픈'])state.meta.dates['가오픈']=state.meta.가오픈일;delete state.meta.가오픈일;}
   if(state.meta.정식오픈일){if(!state.meta.dates['정식'])state.meta.dates['정식']=state.meta.정식오픈일;delete state.meta.정식오픈일;}
+  let migratedDuration=false;
   state.pages.forEach(p=>{
     if(!p.checks) p.checks={};
     PAGE_TASKS.forEach(k=>{if(p.checks[k]===undefined)p.checks[k]=false;});
@@ -424,10 +425,15 @@ async function load(){
           delete ix.on;
           if(ix.status===undefined) ix.status=ix.done?'구현 완료':'';
           delete ix.done;
+          if(!state.meta.durationDefaultCleared && ix.duration==='0.6'){ix.duration='';migratedDuration=true;}
         });
       });
     });
   });
+  if(!state.meta.durationDefaultCleared){
+    state.meta.durationDefaultCleared=true;
+    if(migratedDuration) await save();
+  }
 }
 async function save(){
   try{await db.ref(DB_REF).set(state);}
