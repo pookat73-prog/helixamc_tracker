@@ -452,6 +452,15 @@ async function load(){
       });
     });
   });
+  if(!state.meta._timingDefaultsCleared){
+    state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>(e.ixs||[]).forEach(ix=>{
+      if(String(ix.duration)==='0.6'&&String(ix.delay)==='0'&&ix.easing==='ease-out'){
+        ix.duration='';ix.delay='';ix.easing='';
+      }
+    }))));
+    state.meta._timingDefaultsCleared=true;
+    save();
+  }
 }
 async function save(){
   try{await db.ref(DB_REF).set(state);}
