@@ -1269,6 +1269,7 @@ document.addEventListener('change',ev=>{
   if(act==='set-elem-status'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.status=t.value;save();render();return;}
   if(act==='set-ix-status'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(!ix)return;ix.status=t.value;save();render();return;}
   if(act==='edit-page-release'){const p=findPage(t.dataset.id);if(!p)return;p.release=t.value;save();render();return;}
+  if(act==='edit-page-slug'){const p=findPage(t.dataset.id);if(!p)return;p.slug=t.value.trim();save();render();return;}
   if(act==='set-page-priority'){const p=findPage(t.dataset.id);if(!p)return;p.priority=t.value||DEFAULT_PRIORITY;save();render();return;}
   if(act==='set-meta'){state.meta[t.dataset.key]=t.value;save();render();return;}
   if(act==='set-stage-date'){const idx=parseInt(t.dataset.idx),name=state.meta.stages&&state.meta.stages[idx];if(!name)return;state.meta.dates=state.meta.dates||{};if(t.value)state.meta.dates[name]=t.value;else delete state.meta.dates[name];save();render();return;}
