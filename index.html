@@ -27,7 +27,6 @@
     --r:12px;--r-sm:8px;--r-xs:6px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
   body{font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
   button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
   button{cursor:pointer;border:none;background:none}
@@ -36,7 +35,7 @@
   textarea{resize:vertical;min-height:60px;font-family:inherit}
   #app{display:flex;min-height:100vh}
   .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;gap:24px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
-  .main{flex:1;padding:32px;max-width:calc(100vw - 240px);overflow-x:hidden}
+  .main{flex:1;padding:32px;max-width:calc(100vw - 240px);min-width:0}
   .logo{font-weight:700;font-size:16px;letter-spacing:-.02em;padding:0 8px}
   .logo small{display:block;color:var(--text-muted);font-weight:500;font-size:12px;margin-top:2px}
   .nav{display:flex;flex-direction:column;gap:2px}
