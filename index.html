@@ -411,6 +411,8 @@ let state = {meta:{stages:[...DEFAULT_RELEASES],dates:{}},pages:[]};
 let view='dashboard', selPage=null;
 let openSections=new Set(), openIxPanels=new Set(), editingIx=new Set();
 let overviewFilters={page:'all',progress:'all',flag:'all',search:''};
+let ixFilters={status:'all',trigger:'all',action:'all',search:''};
+let assetFilters={status:'all',type:'all',page:'all',search:''};
 
 async function load(){
   try{
@@ -1028,11 +1030,12 @@ function renderAssets(){
   state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{if(e.type==='image'||e.type==='text'){items.push({id:elemDisplayId(p,s,e),page:p,section:s,elem:e});}})));
   let h=`<div class="page-head"><div><h2>이미지·유닛 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">🖼</div><div class="empty-msg">항목이 없어요.</div></div>`;
+  const af=assetFilters;
   h+=`<div class="filter-bar">
-    <select id="img-filter-status"><option value="all">전체 상태</option><option value="">미정</option>${ELEM_STATUSES.map(st=>`<option value="${st}">${st}</option>`).join('')}</select>
-    <select id="img-filter-type"><option value="all">전체 유형</option><option value="image">이미지/영상</option><option value="text">유닛</option></select>
-    <select id="img-filter-page"><option value="all">전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-    <input id="img-filter-search" placeholder="검색..." style="flex:1;min-width:160px"/>
+    <select id="img-filter-status"><option value="all" ${af.status==='all'?'selected':''}>전체 상태</option><option value="" ${af.status===''?'selected':''}>미정</option>${ELEM_STATUSES.map(st=>`<option value="${st}" ${af.status===st?'selected':''}>${st}</option>`).join('')}</select>
+    <select id="img-filter-type"><option value="all" ${af.type==='all'?'selected':''}>전체 유형</option><option value="image" ${af.type==='image'?'selected':''}>이미지/영상</option><option value="text" ${af.type==='text'?'selected':''}>유닛</option></select>
+    <select id="img-filter-page"><option value="all" ${af.page==='all'?'selected':''}>전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}" ${af.page===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
+    <input id="img-filter-search" placeholder="검색..." value="${esc(af.search)}" style="flex:1;min-width:160px"/>
   </div>
   <div class="card" style="padding:0;overflow:hidden"><table class="table" id="img-table">
     <thead><tr><th>ID</th><th>유형</th><th>위치</th><th>설명</th><th>경로</th><th>인터랙션</th><th>상태</th></tr></thead>
@@ -1054,11 +1057,12 @@ function renderInteractions(){
   state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{(e.ixs||[]).forEach(ix=>{const id=isAsset(e)?elemDisplayId(p,s,e):'';items.push({page:p,section:s,elem:e,ix,id});});})));
   let h=`<div class="page-head"><div><h2>인터랙션 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">⚡</div><div class="empty-msg">인터랙션이 없어요.</div></div>`;
+  const ixf=ixFilters;
   h+=`<div class="filter-bar">
-    <select id="ix-filter-status"><option value="all">전체</option><option value="">미정</option>${IX_STATUSES.map(st=>`<option value="${st}">${st}</option>`).join('')}</select>
-    <select id="ix-filter-trigger"><option value="all">전체 트리거</option>${TRIGGERS.map(t=>`<option>${t}</option>`).join('')}</select>
-    <select id="ix-filter-action"><option value="all">전체 동작</option>${ACTIONS.map(t=>`<option>${t}</option>`).join('')}</select>
-    <input id="ix-filter-search" placeholder="검색..." style="flex:1;min-width:160px"/>
+    <select id="ix-filter-status"><option value="all" ${ixf.status==='all'?'selected':''}>전체</option><option value="" ${ixf.status===''?'selected':''}>미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ixf.status===st?'selected':''}>${st}</option>`).join('')}</select>
+    <select id="ix-filter-trigger"><option value="all" ${ixf.trigger==='all'?'selected':''}>전체 트리거</option>${TRIGGERS.map(t=>`<option ${ixf.trigger===t?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="ix-filter-action"><option value="all" ${ixf.action==='all'?'selected':''}>전체 동작</option>${ACTIONS.map(t=>`<option ${ixf.action===t?'selected':''}>${t}</option>`).join('')}</select>
+    <input id="ix-filter-search" placeholder="검색..." value="${esc(ixf.search)}" style="flex:1;min-width:160px"/>
   </div><div class="grid grid-3" id="ix-grid">`;
   items.forEach(it=>{
     const ix=it.ix,params=ix.params||{},aFields=ACTION_FIELDS[ix.action]||[];
@@ -1110,10 +1114,13 @@ function bindEvents(){
   ['ix-filter-status','ix-filter-trigger','ix-filter-action','ix-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyIxFilters);});
   ['ov-filter-page','ov-filter-progress','ov-filter-flag','ov-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyOverviewFilters);});
   if(document.getElementById('ov-list')) applyOverviewFilters();
+  if(document.getElementById('img-table')) applyAssetFilters();
+  if(document.getElementById('ix-grid')) applyIxFilters();
   const imp=document.getElementById('import-file');if(imp)imp.addEventListener('change',handleImport);
 }
 function applyAssetFilters(){
   const st=document.getElementById('img-filter-status').value,tp=document.getElementById('img-filter-type').value,pg=document.getElementById('img-filter-page').value,sr=(document.getElementById('img-filter-search').value||'').toLowerCase();
+  assetFilters.status=st;assetFilters.type=tp;assetFilters.page=pg;assetFilters.search=sr;
   document.querySelectorAll('#img-table tbody tr').forEach(tr=>{
     let show=true;
     if(st!=='all'&&tr.dataset.status!==st)show=false;
@@ -1148,6 +1155,7 @@ function applyOverviewFilters(){
 }
 function applyIxFilters(){
   const st=document.getElementById('ix-filter-status').value,tr=document.getElementById('ix-filter-trigger').value,ac=document.getElementById('ix-filter-action').value,sr=(document.getElementById('ix-filter-search').value||'').toLowerCase();
+  ixFilters.status=st;ixFilters.trigger=tr;ixFilters.action=ac;ixFilters.search=sr;
   document.querySelectorAll('#ix-grid>.ix-card').forEach(c=>{
     let show=true;
     if(st!=='all'&&c.dataset.status!==st)show=false;
