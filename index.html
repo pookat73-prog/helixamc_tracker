@@ -96,6 +96,7 @@
   .page-card-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:12px;color:var(--text-muted)}
   .release-tag{background:#fef3c7;color:#92400e;font-size:11px;padding:3px 9px;border-radius:99px;font-weight:600}
   .release-tag.empty{background:var(--border-soft);color:var(--text-muted)}
+  .published-badge{background:#d1fae5;color:#065f46;font-size:11px;padding:3px 9px;border-radius:99px;font-weight:700;letter-spacing:.02em}
   .flag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
   .flag-row{display:flex;flex-wrap:wrap;gap:4px}
   .flag-진행중{background:#dbeafe;color:#1e40af}
@@ -372,6 +373,7 @@ const FLAGS = ['진행중','제작중','수정중','보류','검토 대기','이
 const FLAG_DEFS = {'진행중':'지금 작업 중인 항목','제작중':'디자인/콘텐츠 제작 중','수정중':'배포 후 재작업 중','보류':'우선순위 밀려 멈춤','검토 대기':'컨펌/리뷰 대기','이슈':'문제 발생, 해결 필요'};
 const FLAG_CLS = {'진행중':'flag-진행중','제작중':'flag-제작중','수정중':'flag-수정중','보류':'flag-보류','검토 대기':'flag-검토','이슈':'flag-이슈'};
 const PAGE_TASKS = ['기획','디자인','코딩','콘텐츠 입력','점검','런칭'];
+const MOBILE_TASKS = ['수치 변환','모바일 IX','점검','컨펌 대기','발행 대기','발행'];
 const SECTION_STAGES = ['기획','카피','레이아웃','코딩','점검','발행대기'];
 const DEFAULT_RELEASES = ['가오픈','정식'];
 const TRIGGERS = ['스크롤 진입','자동 (페이지 로드)','클릭','호버','시간 경과','비디오 종료','커스텀'];
@@ -427,6 +429,8 @@ async function load(){
   state.pages.forEach(p=>{
     if(!p.checks) p.checks={};
     PAGE_TASKS.forEach(k=>{if(p.checks[k]===undefined)p.checks[k]=false;});
+    if(!p.mobileChecks) p.mobileChecks={};
+    MOBILE_TASKS.forEach(k=>{if(p.mobileChecks[k]===undefined)p.mobileChecks[k]=false;});
     if(p.slug===undefined) p.slug='';
     if(!p.flags) p.flags=[];
     if(!p.priority||!PRIORITY_ORDER.hasOwnProperty(p.priority)) p.priority=DEFAULT_PRIORITY;
@@ -533,6 +537,7 @@ function calcSection(s){
 function calcPage(p){
   let total=0,done=0;
   if(p.checks) Object.values(p.checks).forEach(v=>{total++;if(v)done++;});
+  if(p.mobileChecks) Object.values(p.mobileChecks).forEach(v=>{total++;if(v)done++;});
   (p.sections||[]).forEach(s=>{const c=calcSection(s);total+=c.total;done+=c.done;});
   return{total,done,pct:total?Math.round(done/total*100):0};
 }
@@ -708,6 +713,8 @@ function renderPagesList(){
       const p=it.page,c=calcPage(p),undone=c.total-c.done;
       const pri=p.priority||DEFAULT_PRIORITY;
       const isFirst=i===0,isLast=i===items.length-1;
+      const mDone=MOBILE_TASKS.filter(k=>p.mobileChecks&&p.mobileChecks[k]).length;
+      const mPub=!!(p.mobileChecks&&p.mobileChecks['발행']);
       h+=`<div class="card page-card" data-act="open-page" data-id="${p.id}">
         <div class="page-card-head">
           <div style="flex:1;min-width:0">
@@ -721,7 +728,7 @@ function renderPagesList(){
         </div>
         <div class="row" style="justify-content:space-between;margin-bottom:5px"><span class="muted small">진행률</span><span style="font-weight:700">${c.pct}%</span></div>
         <div class="pbar"><div class="pbar-fill ${c.pct===100?'full':''}" style="width:${c.pct}%"></div></div>
-        <div class="page-card-meta"><span>섹션 ${(p.sections||[]).length}개</span><span>·</span><span>${c.done}/${c.total}</span>${undone>0?`<span>·</span><span style="color:var(--warning)">미완 ${undone}</span>`:''}</div>
+        <div class="page-card-meta"><span>섹션 ${(p.sections||[]).length}개</span><span>·</span><span>${c.done}/${c.total}</span>${undone>0?`<span>·</span><span style="color:var(--warning)">미완 ${undone}</span>`:''}<span>·</span><span title="모바일 진행도">📱 ${mDone}/${MOBILE_TASKS.length}</span>${mPub?`<span class="published-badge" title="모바일 발행 완료">✅ 발행</span>`:''}</div>
         ${(p.flags||[]).length?`<div class="flag-row" style="margin-top:8px">${(p.flags||[]).map(f=>`<span class="flag ${FLAG_CLS[f]}" title="${esc(FLAG_DEFS[f])}">${f}</span>`).join('')}</div>`:''}
         <div class="page-card-actions" data-act="card-noop">
           <select class="priority-select ${PRIORITY_CLS[pri]}" data-act="set-page-priority" data-id="${p.id}" title="우선순위">${PRIORITIES.map(pr=>`<option value="${pr}" ${pri===pr?'selected':''}>${pr}</option>`).join('')}</select>
@@ -765,7 +772,8 @@ function renderPageDetail(p){
   <div style="margin-bottom:8px"><div class="muted small" style="margin-bottom:6px;font-weight:600">상태 플래그</div>
     <div class="flag-picker">${FLAGS.map(f=>{const on=(p.flags||[]).includes(f);return`<button class="flag-pill ${on?'on flag '+FLAG_CLS[f]:''}" title="${esc(FLAG_DEFS[f])}" data-act="toggle-page-flag" data-id="${p.id}" data-flag="${f}">${f}</button>`;}).join('')}</div>
   </div>
-  <div class="checks-row"><div class="checks-label">페이지 작업</div>${PAGE_TASKS.map(k=>`<label class="check-item"><input type="checkbox" data-act="toggle-page-check" data-id="${p.id}" data-key="${k}" ${p.checks&&p.checks[k]?'checked':''}/>${k}</label>`).join('')}</div>
+  <div class="checks-row"><div class="checks-label">🖥 데스크탑 작업</div>${PAGE_TASKS.map(k=>`<label class="check-item"><input type="checkbox" data-act="toggle-page-check" data-id="${p.id}" data-key="${k}" ${p.checks&&p.checks[k]?'checked':''}/>${k}</label>`).join('')}</div>
+  <div class="checks-row"><div class="checks-label">📱 모바일 작업</div>${MOBILE_TASKS.map(k=>`<label class="check-item"><input type="checkbox" data-act="toggle-page-mobile-check" data-id="${p.id}" data-key="${k}" ${p.mobileChecks&&p.mobileChecks[k]?'checked':''}/>${k}</label>`).join('')}</div>
   <div class="row" style="justify-content:space-between;margin:20px 0 12px"><h3 style="font-size:15px;font-weight:700">섹션 (${(p.sections||[]).length}개)</h3><button class="btn btn-soft btn-sm" data-act="add-section" data-id="${p.id}">+ 섹션 추가</button></div>`;
   if(!(p.sections||[]).length) h+=`<div class="card empty"><div class="empty-icon">📑</div><div class="empty-msg">섹션을 추가하세요.</div></div>`;
   else (p.sections||[]).forEach((s,si)=>h+=renderSection(p,s,si));
@@ -957,6 +965,8 @@ function renderOverview(){
     const sections=p.sections||[];
     const pc=calcPage(p);
     const pageFlags=p.flags||[];
+    const mDone=MOBILE_TASKS.filter(k=>p.mobileChecks&&p.mobileChecks[k]).length;
+    const mPub=!!(p.mobileChecks&&p.mobileChecks['발행']);
     h+=`<div class="ov-page" data-pid="${p.id}">
       <div class="ov-page-head">
         <div style="flex:1;min-width:0">
@@ -965,11 +975,12 @@ function renderOverview(){
             ${p.abbr?`<span class="page-card-abbr">${esc(p.abbr.toUpperCase())}</span>`:''}
             <span class="release-tag ${p.release?'':'empty'}">${esc(p.release||'미지정')}</span>
             ${pageLiveUrl(p)?`<a class="btn btn-soft btn-sm" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="_blank" rel="noopener noreferrer" title="라이브 사이트 열기 (우클릭 → 시크릿 창)" style="text-decoration:none">🔗 라이브 ↗</a>`:''}
+            ${mPub?`<span class="published-badge" title="모바일 발행 완료">✅ 발행</span>`:''}
             ${pageFlags.map(f=>`<span class="flag ${FLAG_CLS[f]}" title="${esc(FLAG_DEFS[f])}">${f}</span>`).join('')}
           </div>
         </div>
         <div class="ov-page-meta">
-          <div class="row gap-8 small"><span class="muted">섹션 ${sections.length}개</span><span class="muted">·</span><span style="font-weight:700">${pc.pct}%</span><span class="muted">${pc.done}/${pc.total}</span></div>
+          <div class="row gap-8 small"><span class="muted">섹션 ${sections.length}개</span><span class="muted">·</span><span style="font-weight:700">${pc.pct}%</span><span class="muted">${pc.done}/${pc.total}</span><span class="muted">·</span><span class="muted" title="모바일 진행도">📱 ${mDone}/${MOBILE_TASKS.length}</span></div>
           <div class="pbar" style="width:160px"><div class="pbar-fill ${pc.pct===100?'full':''}" style="width:${pc.pct}%"></div></div>
         </div>
       </div>`;
@@ -1227,7 +1238,8 @@ document.addEventListener('click',ev=>{
   if(act==='open-page'){selPage=t.dataset.id;view='pages';render();return;}
   if(act==='add-page'){
     const checks={};PAGE_TASKS.forEach(k=>checks[k]=false);
-    const p={id:uid(),name:'',abbr:'',release:'',priority:DEFAULT_PRIORITY,flags:[],checks,sections:[]};
+    const mobileChecks={};MOBILE_TASKS.forEach(k=>mobileChecks[k]=false);
+    const p={id:uid(),name:'',abbr:'',release:'',priority:DEFAULT_PRIORITY,flags:[],checks,mobileChecks,sections:[]};
     state.pages.push(p);save();selPage=p.id;render();return;
   }
   if(act==='del-page'){confirmDialog('이 페이지를 삭제하시겠어요?',()=>{state.pages=state.pages.filter(p=>p.id!==t.dataset.id);selPage=null;save();render();});return;}
@@ -1264,6 +1276,7 @@ document.addEventListener('change',ev=>{
   const t=ev.target.closest('[data-act]');if(!t)return;
   const act=t.dataset.act;
   if(act==='toggle-page-check'){const p=findPage(t.dataset.id);if(!p)return;p.checks=p.checks||{};p.checks[t.dataset.key]=t.checked;save();render();return;}
+  if(act==='toggle-page-mobile-check'){const p=findPage(t.dataset.id);if(!p)return;p.mobileChecks=p.mobileChecks||{};p.mobileChecks[t.dataset.key]=t.checked;save();render();return;}
   if(act==='toggle-section-stage'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.stages=s.stages||{};s.stages[t.dataset.key]=t.checked;save();render();return;}
   if(act==='set-elem-status'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.status=t.value;save();render();return;}
   if(act==='set-ix-status'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);const ix=e&&(e.ixs||[]).find(x=>x.id===t.dataset.iid);if(!ix)return;ix.status=t.value;save();render();return;}
