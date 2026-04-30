@@ -428,6 +428,7 @@ async function load(){
   state.pages.forEach(p=>{
     if(!p.checks) p.checks={};
     PAGE_TASKS.forEach(k=>{if(p.checks[k]===undefined)p.checks[k]=false;});
+    if(p.slug===undefined) p.slug='';
     if(!p.flags) p.flags=[];
     if(!p.priority||!PRIORITY_ORDER.hasOwnProperty(p.priority)) p.priority=DEFAULT_PRIORITY;
     if(!p.sections) p.sections=[];
@@ -570,6 +571,18 @@ const $main=document.getElementById('main');
 const $dday=document.getElementById('dday-area');
 const $live=document.getElementById('live-shortcut');
 const DEFAULT_LIVE_URL='https://helixanimalmedicalcenter.webflow.io/';
+
+function liveBaseUrl(){
+  const raw=(state.meta&&state.meta.liveUrl)||DEFAULT_LIVE_URL;
+  return /^https?:\/\//i.test(raw)?raw:('https://'+raw);
+}
+function pageLiveUrl(p){
+  if(!p||!p.slug) return '';
+  const v=String(p.slug).trim();
+  if(!v) return '';
+  if(/^https?:\/\//i.test(v)) return v;
+  return liveBaseUrl().replace(/\/+$/,'')+'/'+v.replace(/^\/+/,'');
+}
 
 function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
@@ -714,6 +727,7 @@ function renderPagesList(){
         <div class="page-card-actions" data-act="card-noop">
           <select class="priority-select ${PRIORITY_CLS[pri]}" data-act="set-page-priority" data-id="${p.id}" title="우선순위">${PRIORITIES.map(pr=>`<option value="${pr}" ${pri===pr?'selected':''}>${pr}</option>`).join('')}</select>
           <button class="btn-icon" data-act="dup-page" data-id="${p.id}" title="복제">⎘</button>
+          ${pageLiveUrl(p)?`<a class="btn-icon" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="_blank" rel="noopener noreferrer" title="라이브 사이트 열기 (우클릭 → 시크릿 창)" style="text-decoration:none">🔗</a>`:''}
           <span class="spacer" data-act="card-noop"></span>
           <div class="reorder">
             <button data-act="move-page-up" data-id="${p.id}" ${isFirst?'disabled':''} title="위로">▲</button>
@@ -740,6 +754,10 @@ function renderPageDetail(p){
         <select data-act="edit-page-release" data-id="${p.id}"><option value="">미지정</option>${stages.map(r=>`<option value="${esc(r)}" ${p.release===r?'selected':''}>${esc(r)}</option>`).join('')}</select>
         <label style="margin-left:8px">우선순위</label>
         <select class="priority-select ${PRIORITY_CLS[p.priority||DEFAULT_PRIORITY]}" data-act="set-page-priority" data-id="${p.id}">${PRIORITIES.map(pr=>`<option value="${pr}" ${(p.priority||DEFAULT_PRIORITY)===pr?'selected':''}>${pr}</option>`).join('')}</select>
+      </div>
+      <div class="meta-row" style="margin-top:6px">
+        <label>라이브 슬러그</label><input data-act="edit-page-slug" data-id="${p.id}" value="${esc(p.slug||'')}" placeholder="heldongmedisenteo" style="flex:1;min-width:160px;font-family:'SF Mono',Menlo,monospace;font-size:12px"/>
+        ${pageLiveUrl(p)?`<a class="btn btn-soft btn-sm" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="_blank" rel="noopener noreferrer" title="새 탭에서 열기 · 우클릭 → 시크릿 창에서 링크 열기" style="text-decoration:none">🔗 라이브 ↗</a>`:''}
       </div>
     </div>
     <div style="text-align:right"><div style="font-size:24px;font-weight:700">${c.pct}%</div><div class="muted small">${c.done}/${c.total}</div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-soft btn-sm" data-act="dup-page" data-id="${p.id}">⎘ 복제</button><button class="btn btn-danger btn-sm" data-act="del-page" data-id="${p.id}">삭제</button></div></div>
@@ -947,6 +965,7 @@ function renderOverview(){
             <a class="ov-page-name${p.name?'':' empty'}" data-act="open-page" data-id="${p.id}">${p.name?esc(p.name):'(이름 없음)'}</a>
             ${p.abbr?`<span class="page-card-abbr">${esc(p.abbr.toUpperCase())}</span>`:''}
             <span class="release-tag ${p.release?'':'empty'}">${esc(p.release||'미지정')}</span>
+            ${pageLiveUrl(p)?`<a class="btn btn-soft btn-sm" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="_blank" rel="noopener noreferrer" title="라이브 사이트 열기 (우클릭 → 시크릿 창)" style="text-decoration:none">🔗 라이브 ↗</a>`:''}
             ${pageFlags.map(f=>`<span class="flag ${FLAG_CLS[f]}" title="${esc(FLAG_DEFS[f])}">${f}</span>`).join('')}
           </div>
         </div>
@@ -1263,6 +1282,7 @@ document.addEventListener('input',ev=>{
   const act=t.dataset.act;
   if(act==='edit-page-name'){const p=findPage(t.dataset.id);if(p)p.name=t.value;}
   else if(act==='edit-page-abbr'){const p=findPage(t.dataset.id);if(p){const v=t.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(v!==t.value)t.value=v;p.abbr=v;}}
+  else if(act==='edit-page-slug'){const p=findPage(t.dataset.id);if(p)p.slug=t.value.trim();}
   else if(act==='edit-section-name'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(s)s.name=t.value;}
   else if(act==='edit-section-abbr'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(s){const v=t.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(v!==t.value)t.value=v;s.abbr=v;}}
   else if(act==='edit-elem-label'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(e)e.label=t.value;}
