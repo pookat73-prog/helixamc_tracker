@@ -410,7 +410,7 @@ const ACTION_FIELDS = {
 let state = {meta:{stages:[...DEFAULT_RELEASES],dates:{}},pages:[]};
 let view='dashboard', selPage=null;
 let openSections=new Set(), openIxPanels=new Set(), editingIx=new Set();
-let overviewFilters={page:'all',progress:'all',flag:'all',search:''};
+let overviewFilters={page:'all',progress:'all',flag:'all',elemStatus:'all',ixStatus:'all',search:''};
 let ixFilters={status:'all',trigger:'all',action:'all',search:''};
 let assetFilters={status:'all',type:'all',page:'all',search:''};
 
@@ -931,6 +931,8 @@ function renderOverview(){
     <select id="ov-filter-page"><option value="all" ${ovf.page==='all'?'selected':''}>전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}" ${ovf.page===p.id?'selected':''}>${esc(p.name||'(이름 없음)')}</option>`).join('')}</select>
     <select id="ov-filter-progress"><option value="all" ${ovf.progress==='all'?'selected':''}>전체 진행률</option><option value="incomplete" ${ovf.progress==='incomplete'?'selected':''}>미완료만</option><option value="complete" ${ovf.progress==='complete'?'selected':''}>완료만</option></select>
     <select id="ov-filter-flag"><option value="all" ${ovf.flag==='all'?'selected':''}>전체 플래그</option>${FLAGS.map(f=>`<option value="${f}" ${ovf.flag===f?'selected':''}>${f}</option>`).join('')}</select>
+    <select id="ov-filter-elem-status"><option value="all" ${ovf.elemStatus==='all'?'selected':''}>전체 유닛 상태</option><option value="" ${ovf.elemStatus===''?'selected':''}>유닛 미정</option>${ELEM_STATUSES.map(st=>`<option value="${st}" ${ovf.elemStatus===st?'selected':''}>유닛 ${st}</option>`).join('')}</select>
+    <select id="ov-filter-ix-status"><option value="all" ${ovf.ixStatus==='all'?'selected':''}>전체 IX 상태</option><option value="" ${ovf.ixStatus===''?'selected':''}>IX 미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ovf.ixStatus===st?'selected':''}>IX ${st}</option>`).join('')}</select>
     <input id="ov-filter-search" placeholder="검색 (섹션·유닛·인터랙션)" value="${esc(ovf.search)}" style="flex:1;min-width:160px"/>
   </div>
   <div id="ov-list">`;
@@ -987,7 +989,7 @@ function renderOverview(){
             const id=elemDisplayId(p,s,e);
             const typeLabel=e.type==='text'?'유닛':e.type==='image'?'이미지/영상':'오브젝트';
             const eStCls=e.status?ELEM_STATUS_CLS[e.status]:'elem-status-empty';
-            h+=`<div class="ov-elem">
+            h+=`<div class="ov-elem" data-status="${esc(e.status||'')}">
               <div class="ov-elem-head">
                 <span class="elem-type-badge elem-type-${e.type}">${typeLabel}</span>
                 ${id?`<span class="elem-id">${esc(id)}</span>`:''}
@@ -1005,7 +1007,7 @@ function renderOverview(){
               h+=`<div class="ov-ix-list">`;
               ixs.forEach(ix=>{
                 const stCls=ix.status?IX_STATUS_CLS[ix.status]:'ix-status-empty';
-                h+=`<div class="ov-ix-row">
+                h+=`<div class="ov-ix-row" data-status="${esc(ix.status||'')}">
                   <span class="ov-ix-bullet">⚡</span>
                   <div class="ov-ix-summary">${ovIxLine(ix)}</div>
                   <select class="ix-status-select ${stCls}" data-act="set-ix-status" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}"><option value="" ${!ix.status?'selected':''}>미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ix.status===st?'selected':''}>${st}</option>`).join('')}</select>
@@ -1112,7 +1114,7 @@ function renderSettings(){
 function bindEvents(){
   ['img-filter-status','img-filter-type','img-filter-page','img-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyAssetFilters);});
   ['ix-filter-status','ix-filter-trigger','ix-filter-action','ix-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyIxFilters);});
-  ['ov-filter-page','ov-filter-progress','ov-filter-flag','ov-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyOverviewFilters);});
+  ['ov-filter-page','ov-filter-progress','ov-filter-flag','ov-filter-elem-status','ov-filter-ix-status','ov-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyOverviewFilters);});
   if(document.getElementById('ov-list')) applyOverviewFilters();
   if(document.getElementById('img-table')) applyAssetFilters();
   if(document.getElementById('ix-grid')) applyIxFilters();
@@ -1134,8 +1136,11 @@ function applyOverviewFilters(){
   const pg=document.getElementById('ov-filter-page').value;
   const pr=document.getElementById('ov-filter-progress').value;
   const fl=document.getElementById('ov-filter-flag').value;
+  const es=document.getElementById('ov-filter-elem-status').value;
+  const ixs=document.getElementById('ov-filter-ix-status').value;
   const sr=(document.getElementById('ov-filter-search').value||'').toLowerCase();
-  overviewFilters.page=pg;overviewFilters.progress=pr;overviewFilters.flag=fl;overviewFilters.search=sr;
+  overviewFilters.page=pg;overviewFilters.progress=pr;overviewFilters.flag=fl;overviewFilters.elemStatus=es;overviewFilters.ixStatus=ixs;overviewFilters.search=sr;
+  const childFilterActive=(es!=='all')||(ixs!=='all');
   document.querySelectorAll('#ov-list>.ov-page').forEach(box=>{
     const pid=box.dataset.pid;
     if(pg!=='all'&&pid!==pg){box.style.display='none';return;}
@@ -1147,6 +1152,23 @@ function applyOverviewFilters(){
       if(pr==='incomplete'&&sec.dataset.complete==='1')show=false;
       if(fl!=='all'){const fs=(sec.dataset.flags||'').split('|').filter(Boolean);if(!fs.includes(fl))show=false;}
       if(sr&&!sec.dataset.search.includes(sr))show=false;
+      let visibleElems=0;
+      sec.querySelectorAll('.ov-elem').forEach(el=>{
+        let ok=true;
+        if(es!=='all'&&(el.dataset.status||'')!==es)ok=false;
+        const ixRows=el.querySelectorAll('.ov-ix-row');
+        let visIx=0;
+        ixRows.forEach(row=>{
+          const rowOk=(ixs==='all')||((row.dataset.status||'')===ixs);
+          row.style.display=rowOk?'':'none';
+          if(rowOk)visIx++;
+        });
+        if(ok&&ixs!=='all'&&ixRows.length===0)ok=false;
+        if(ok&&ixs!=='all'&&ixRows.length>0&&visIx===0)ok=false;
+        el.style.display=ok?'':'none';
+        if(ok)visibleElems++;
+      });
+      if(show&&childFilterActive&&visibleElems===0)show=false;
       sec.style.display=show?'':'none';
       if(show)any=true;
     });
