@@ -410,6 +410,7 @@ const ACTION_FIELDS = {
 let state = {meta:{stages:[...DEFAULT_RELEASES],dates:{}},pages:[]};
 let view='dashboard', selPage=null;
 let openSections=new Set(), openIxPanels=new Set(), editingIx=new Set();
+let overviewFilters={page:'all',progress:'all',flag:'all',search:''};
 
 async function load(){
   try{
@@ -923,11 +924,12 @@ function renderOverview(){
   }));
   let h=`<div class="page-head"><div><h2>페이지 모아보기</h2><div class="sub">페이지 ${state.pages.length}개 · 섹션 ${totalSec}개 · 유닛 ${totalElem}개 · 인터랙션 ${totalIx}개</div></div></div>`;
   if(!state.pages.length) return h+`<div class="card empty"><div class="empty-icon">📋</div><div class="empty-msg">페이지를 먼저 추가해주세요.</div><button class="btn btn-primary" data-act="goto-pages">페이지 추가하러 가기</button></div>`;
+  const ovf=overviewFilters;
   h+=`<div class="filter-bar">
-    <select id="ov-filter-page"><option value="all">전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}">${esc(p.name||'(이름 없음)')}</option>`).join('')}</select>
-    <select id="ov-filter-progress"><option value="all">전체 진행률</option><option value="incomplete">미완료만</option><option value="complete">완료만</option></select>
-    <select id="ov-filter-flag"><option value="all">전체 플래그</option>${FLAGS.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
-    <input id="ov-filter-search" placeholder="검색 (섹션·유닛·인터랙션)" style="flex:1;min-width:160px"/>
+    <select id="ov-filter-page"><option value="all" ${ovf.page==='all'?'selected':''}>전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}" ${ovf.page===p.id?'selected':''}>${esc(p.name||'(이름 없음)')}</option>`).join('')}</select>
+    <select id="ov-filter-progress"><option value="all" ${ovf.progress==='all'?'selected':''}>전체 진행률</option><option value="incomplete" ${ovf.progress==='incomplete'?'selected':''}>미완료만</option><option value="complete" ${ovf.progress==='complete'?'selected':''}>완료만</option></select>
+    <select id="ov-filter-flag"><option value="all" ${ovf.flag==='all'?'selected':''}>전체 플래그</option>${FLAGS.map(f=>`<option value="${f}" ${ovf.flag===f?'selected':''}>${f}</option>`).join('')}</select>
+    <input id="ov-filter-search" placeholder="검색 (섹션·유닛·인터랙션)" value="${esc(ovf.search)}" style="flex:1;min-width:160px"/>
   </div>
   <div id="ov-list">`;
   state.pages.forEach(p=>{
@@ -1107,6 +1109,7 @@ function bindEvents(){
   ['img-filter-status','img-filter-type','img-filter-page','img-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyAssetFilters);});
   ['ix-filter-status','ix-filter-trigger','ix-filter-action','ix-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyIxFilters);});
   ['ov-filter-page','ov-filter-progress','ov-filter-flag','ov-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyOverviewFilters);});
+  if(document.getElementById('ov-list')) applyOverviewFilters();
   const imp=document.getElementById('import-file');if(imp)imp.addEventListener('change',handleImport);
 }
 function applyAssetFilters(){
@@ -1125,6 +1128,7 @@ function applyOverviewFilters(){
   const pr=document.getElementById('ov-filter-progress').value;
   const fl=document.getElementById('ov-filter-flag').value;
   const sr=(document.getElementById('ov-filter-search').value||'').toLowerCase();
+  overviewFilters.page=pg;overviewFilters.progress=pr;overviewFilters.flag=fl;overviewFilters.search=sr;
   document.querySelectorAll('#ov-list>.ov-page').forEach(box=>{
     const pid=box.dataset.pid;
     if(pg!=='all'&&pid!==pg){box.style.display='none';return;}
