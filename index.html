@@ -410,6 +410,9 @@ const ACTION_FIELDS = {
 let state = {meta:{stages:[...DEFAULT_RELEASES],dates:{}},pages:[]};
 let view='dashboard', selPage=null;
 let openSections=new Set(), openIxPanels=new Set(), editingIx=new Set();
+let overviewFilters={page:'all',progress:'all',flag:'all',elemStatus:'all',ixStatus:'all',search:''};
+let ixFilters={status:'all',trigger:'all',action:'all',search:''};
+let assetFilters={status:'all',type:'all',page:'all',search:''};
 
 async function load(){
   try{
@@ -452,6 +455,15 @@ async function load(){
       });
     });
   });
+  if(!state.meta._timingDefaultsCleared){
+    state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>(e.ixs||[]).forEach(ix=>{
+      if(String(ix.duration)==='0.6'&&String(ix.delay)==='0'&&ix.easing==='ease-out'){
+        ix.duration='';ix.delay='';ix.easing='';
+      }
+    }))));
+    state.meta._timingDefaultsCleared=true;
+    save();
+  }
 }
 async function save(){
   try{await db.ref(DB_REF).set(state);}
@@ -831,7 +843,7 @@ function renderIxForm(p,s,e,ix){
     <div class="ix-section-title">타이밍</div>
     <div class="ix-field"><label>지속시간 (초)</label><input type="number" step="0.05" min="0" data-act="set-ix" ${D} data-key="duration" value="${esc(ix.duration||'')}" placeholder="0.6"/></div>
     <div class="ix-field"><label>지연 (초)</label><input type="number" step="0.05" min="0" data-act="set-ix" ${D} data-key="delay" value="${esc(ix.delay||'')}" placeholder="0"/></div>
-    <div class="ix-field"><label>이징</label><select data-act="set-ix" ${D} data-key="easing">${EASINGS.map(t=>`<option ${ix.easing===t?'selected':''}>${t}</option>`).join('')}</select></div>`;
+    <div class="ix-field"><label>이징</label><select data-act="set-ix" ${D} data-key="easing"><option value="" ${!ix.easing?'selected':''}>선택 안 함</option>${EASINGS.map(t=>`<option ${ix.easing===t?'selected':''}>${t}</option>`).join('')}</select></div>`;
   if(aFields.length){
     h+=`<div class="ix-section-title">${esc(action)} 설정</div>`;
     aFields.forEach(f=>{
@@ -914,11 +926,14 @@ function renderOverview(){
   }));
   let h=`<div class="page-head"><div><h2>페이지 모아보기</h2><div class="sub">페이지 ${state.pages.length}개 · 섹션 ${totalSec}개 · 유닛 ${totalElem}개 · 인터랙션 ${totalIx}개</div></div></div>`;
   if(!state.pages.length) return h+`<div class="card empty"><div class="empty-icon">📋</div><div class="empty-msg">페이지를 먼저 추가해주세요.</div><button class="btn btn-primary" data-act="goto-pages">페이지 추가하러 가기</button></div>`;
+  const ovf=overviewFilters;
   h+=`<div class="filter-bar">
-    <select id="ov-filter-page"><option value="all">전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}">${esc(p.name||'(이름 없음)')}</option>`).join('')}</select>
-    <select id="ov-filter-progress"><option value="all">전체 진행률</option><option value="incomplete">미완료만</option><option value="complete">완료만</option></select>
-    <select id="ov-filter-flag"><option value="all">전체 플래그</option>${FLAGS.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
-    <input id="ov-filter-search" placeholder="검색 (섹션·유닛·인터랙션)" style="flex:1;min-width:160px"/>
+    <select id="ov-filter-page"><option value="all" ${ovf.page==='all'?'selected':''}>전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}" ${ovf.page===p.id?'selected':''}>${esc(p.name||'(이름 없음)')}</option>`).join('')}</select>
+    <select id="ov-filter-progress"><option value="all" ${ovf.progress==='all'?'selected':''}>전체 진행률</option><option value="incomplete" ${ovf.progress==='incomplete'?'selected':''}>미완료만</option><option value="complete" ${ovf.progress==='complete'?'selected':''}>완료만</option></select>
+    <select id="ov-filter-flag"><option value="all" ${ovf.flag==='all'?'selected':''}>전체 플래그</option>${FLAGS.map(f=>`<option value="${f}" ${ovf.flag===f?'selected':''}>${f}</option>`).join('')}</select>
+    <select id="ov-filter-elem-status"><option value="all" ${ovf.elemStatus==='all'?'selected':''}>전체 유닛 상태</option><option value="" ${ovf.elemStatus===''?'selected':''}>유닛 미정</option>${ELEM_STATUSES.map(st=>`<option value="${st}" ${ovf.elemStatus===st?'selected':''}>유닛 ${st}</option>`).join('')}</select>
+    <select id="ov-filter-ix-status"><option value="all" ${ovf.ixStatus==='all'?'selected':''}>전체 IX 상태</option><option value="" ${ovf.ixStatus===''?'selected':''}>IX 미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ovf.ixStatus===st?'selected':''}>IX ${st}</option>`).join('')}</select>
+    <input id="ov-filter-search" placeholder="검색 (섹션·유닛·인터랙션)" value="${esc(ovf.search)}" style="flex:1;min-width:160px"/>
   </div>
   <div id="ov-list">`;
   state.pages.forEach(p=>{
@@ -974,7 +989,7 @@ function renderOverview(){
             const id=elemDisplayId(p,s,e);
             const typeLabel=e.type==='text'?'유닛':e.type==='image'?'이미지/영상':'오브젝트';
             const eStCls=e.status?ELEM_STATUS_CLS[e.status]:'elem-status-empty';
-            h+=`<div class="ov-elem">
+            h+=`<div class="ov-elem" data-status="${esc(e.status||'')}">
               <div class="ov-elem-head">
                 <span class="elem-type-badge elem-type-${e.type}">${typeLabel}</span>
                 ${id?`<span class="elem-id">${esc(id)}</span>`:''}
@@ -992,7 +1007,7 @@ function renderOverview(){
               h+=`<div class="ov-ix-list">`;
               ixs.forEach(ix=>{
                 const stCls=ix.status?IX_STATUS_CLS[ix.status]:'ix-status-empty';
-                h+=`<div class="ov-ix-row">
+                h+=`<div class="ov-ix-row" data-status="${esc(ix.status||'')}">
                   <span class="ov-ix-bullet">⚡</span>
                   <div class="ov-ix-summary">${ovIxLine(ix)}</div>
                   <select class="ix-status-select ${stCls}" data-act="set-ix-status" data-pid="${p.id}" data-sid="${s.id}" data-eid="${e.id}" data-iid="${ix.id}"><option value="" ${!ix.status?'selected':''}>미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ix.status===st?'selected':''}>${st}</option>`).join('')}</select>
@@ -1017,11 +1032,12 @@ function renderAssets(){
   state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{if(e.type==='image'||e.type==='text'){items.push({id:elemDisplayId(p,s,e),page:p,section:s,elem:e});}})));
   let h=`<div class="page-head"><div><h2>이미지·유닛 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">🖼</div><div class="empty-msg">항목이 없어요.</div></div>`;
+  const af=assetFilters;
   h+=`<div class="filter-bar">
-    <select id="img-filter-status"><option value="all">전체 상태</option><option value="">미정</option>${ELEM_STATUSES.map(st=>`<option value="${st}">${st}</option>`).join('')}</select>
-    <select id="img-filter-type"><option value="all">전체 유형</option><option value="image">이미지/영상</option><option value="text">유닛</option></select>
-    <select id="img-filter-page"><option value="all">전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-    <input id="img-filter-search" placeholder="검색..." style="flex:1;min-width:160px"/>
+    <select id="img-filter-status"><option value="all" ${af.status==='all'?'selected':''}>전체 상태</option><option value="" ${af.status===''?'selected':''}>미정</option>${ELEM_STATUSES.map(st=>`<option value="${st}" ${af.status===st?'selected':''}>${st}</option>`).join('')}</select>
+    <select id="img-filter-type"><option value="all" ${af.type==='all'?'selected':''}>전체 유형</option><option value="image" ${af.type==='image'?'selected':''}>이미지/영상</option><option value="text" ${af.type==='text'?'selected':''}>유닛</option></select>
+    <select id="img-filter-page"><option value="all" ${af.page==='all'?'selected':''}>전체 페이지</option>${state.pages.map(p=>`<option value="${p.id}" ${af.page===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
+    <input id="img-filter-search" placeholder="검색..." value="${esc(af.search)}" style="flex:1;min-width:160px"/>
   </div>
   <div class="card" style="padding:0;overflow:hidden"><table class="table" id="img-table">
     <thead><tr><th>ID</th><th>유형</th><th>위치</th><th>설명</th><th>경로</th><th>인터랙션</th><th>상태</th></tr></thead>
@@ -1043,11 +1059,12 @@ function renderInteractions(){
   state.pages.forEach(p=>(p.sections||[]).forEach(s=>(s.elements||[]).forEach(e=>{(e.ixs||[]).forEach(ix=>{const id=isAsset(e)?elemDisplayId(p,s,e):'';items.push({page:p,section:s,elem:e,ix,id});});})));
   let h=`<div class="page-head"><div><h2>인터랙션 모아보기</h2><div class="sub">${items.length}개</div></div></div>`;
   if(!items.length) return h+`<div class="card empty"><div class="empty-icon">⚡</div><div class="empty-msg">인터랙션이 없어요.</div></div>`;
+  const ixf=ixFilters;
   h+=`<div class="filter-bar">
-    <select id="ix-filter-status"><option value="all">전체</option><option value="">미정</option>${IX_STATUSES.map(st=>`<option value="${st}">${st}</option>`).join('')}</select>
-    <select id="ix-filter-trigger"><option value="all">전체 트리거</option>${TRIGGERS.map(t=>`<option>${t}</option>`).join('')}</select>
-    <select id="ix-filter-action"><option value="all">전체 동작</option>${ACTIONS.map(t=>`<option>${t}</option>`).join('')}</select>
-    <input id="ix-filter-search" placeholder="검색..." style="flex:1;min-width:160px"/>
+    <select id="ix-filter-status"><option value="all" ${ixf.status==='all'?'selected':''}>전체</option><option value="" ${ixf.status===''?'selected':''}>미정</option>${IX_STATUSES.map(st=>`<option value="${st}" ${ixf.status===st?'selected':''}>${st}</option>`).join('')}</select>
+    <select id="ix-filter-trigger"><option value="all" ${ixf.trigger==='all'?'selected':''}>전체 트리거</option>${TRIGGERS.map(t=>`<option ${ixf.trigger===t?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="ix-filter-action"><option value="all" ${ixf.action==='all'?'selected':''}>전체 동작</option>${ACTIONS.map(t=>`<option ${ixf.action===t?'selected':''}>${t}</option>`).join('')}</select>
+    <input id="ix-filter-search" placeholder="검색..." value="${esc(ixf.search)}" style="flex:1;min-width:160px"/>
   </div><div class="grid grid-3" id="ix-grid">`;
   items.forEach(it=>{
     const ix=it.ix,params=ix.params||{},aFields=ACTION_FIELDS[ix.action]||[];
@@ -1097,11 +1114,15 @@ function renderSettings(){
 function bindEvents(){
   ['img-filter-status','img-filter-type','img-filter-page','img-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyAssetFilters);});
   ['ix-filter-status','ix-filter-trigger','ix-filter-action','ix-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyIxFilters);});
-  ['ov-filter-page','ov-filter-progress','ov-filter-flag','ov-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyOverviewFilters);});
+  ['ov-filter-page','ov-filter-progress','ov-filter-flag','ov-filter-elem-status','ov-filter-ix-status','ov-filter-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',applyOverviewFilters);});
+  if(document.getElementById('ov-list')) applyOverviewFilters();
+  if(document.getElementById('img-table')) applyAssetFilters();
+  if(document.getElementById('ix-grid')) applyIxFilters();
   const imp=document.getElementById('import-file');if(imp)imp.addEventListener('change',handleImport);
 }
 function applyAssetFilters(){
   const st=document.getElementById('img-filter-status').value,tp=document.getElementById('img-filter-type').value,pg=document.getElementById('img-filter-page').value,sr=(document.getElementById('img-filter-search').value||'').toLowerCase();
+  assetFilters.status=st;assetFilters.type=tp;assetFilters.page=pg;assetFilters.search=sr;
   document.querySelectorAll('#img-table tbody tr').forEach(tr=>{
     let show=true;
     if(st!=='all'&&tr.dataset.status!==st)show=false;
@@ -1115,7 +1136,11 @@ function applyOverviewFilters(){
   const pg=document.getElementById('ov-filter-page').value;
   const pr=document.getElementById('ov-filter-progress').value;
   const fl=document.getElementById('ov-filter-flag').value;
+  const es=document.getElementById('ov-filter-elem-status').value;
+  const ixs=document.getElementById('ov-filter-ix-status').value;
   const sr=(document.getElementById('ov-filter-search').value||'').toLowerCase();
+  overviewFilters.page=pg;overviewFilters.progress=pr;overviewFilters.flag=fl;overviewFilters.elemStatus=es;overviewFilters.ixStatus=ixs;overviewFilters.search=sr;
+  const childFilterActive=(es!=='all')||(ixs!=='all');
   document.querySelectorAll('#ov-list>.ov-page').forEach(box=>{
     const pid=box.dataset.pid;
     if(pg!=='all'&&pid!==pg){box.style.display='none';return;}
@@ -1127,6 +1152,23 @@ function applyOverviewFilters(){
       if(pr==='incomplete'&&sec.dataset.complete==='1')show=false;
       if(fl!=='all'){const fs=(sec.dataset.flags||'').split('|').filter(Boolean);if(!fs.includes(fl))show=false;}
       if(sr&&!sec.dataset.search.includes(sr))show=false;
+      let visibleElems=0;
+      sec.querySelectorAll('.ov-elem').forEach(el=>{
+        let ok=true;
+        if(es!=='all'&&(el.dataset.status||'')!==es)ok=false;
+        const ixRows=el.querySelectorAll('.ov-ix-row');
+        let visIx=0;
+        ixRows.forEach(row=>{
+          const rowOk=(ixs==='all')||((row.dataset.status||'')===ixs);
+          row.style.display=rowOk?'':'none';
+          if(rowOk)visIx++;
+        });
+        if(ok&&ixs!=='all'&&ixRows.length===0)ok=false;
+        if(ok&&ixs!=='all'&&ixRows.length>0&&visIx===0)ok=false;
+        el.style.display=ok?'':'none';
+        if(ok)visibleElems++;
+      });
+      if(show&&childFilterActive&&visibleElems===0)show=false;
       sec.style.display=show?'':'none';
       if(show)any=true;
     });
@@ -1135,6 +1177,7 @@ function applyOverviewFilters(){
 }
 function applyIxFilters(){
   const st=document.getElementById('ix-filter-status').value,tr=document.getElementById('ix-filter-trigger').value,ac=document.getElementById('ix-filter-action').value,sr=(document.getElementById('ix-filter-search').value||'').toLowerCase();
+  ixFilters.status=st;ixFilters.trigger=tr;ixFilters.action=ac;ixFilters.search=sr;
   document.querySelectorAll('#ix-grid>.ix-card').forEach(c=>{
     let show=true;
     if(st!=='all'&&c.dataset.status!==st)show=false;
@@ -1183,8 +1226,8 @@ document.addEventListener('click',ev=>{
   if(act==='add-elem'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.elements=s.elements||[];s.elements.push({id:uid(),type:t.dataset.type,label:'',done:false,assetPath:'',ixs:[]});save();render();return;}
   if(act==='del-elem'){confirmDialog('유닛을 삭제하시겠어요?',()=>{const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;s.elements=(s.elements||[]).filter(e=>e.id!==t.dataset.eid);save();render();});return;}
   if(act==='move-elem-up'||act==='move-elem-down'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid);if(!s)return;const i=s.elements.findIndex(e=>e.id===t.dataset.eid),j=act==='move-elem-up'?i-1:i+1;if(j<0||j>=s.elements.length)return;[s.elements[i],s.elements[j]]=[s.elements[j],s.elements[i]];save();render();return;}
-  if(act==='toggle-ix-panel'){const eid=t.dataset.eid;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,eid);if(!e)return;e.ixs=e.ixs||[];if(e.ixs.length===0){const ix={id:uid(),trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'0.6',delay:'0',easing:'ease-out',link:'',memo:'',actual:'',done:false,params:{}};e.ixs.push(ix);openIxPanels.add(eid);editingIx.add(ix.id);save();render();return;}if(openIxPanels.has(eid))openIxPanels.delete(eid);else openIxPanels.add(eid);render();return;}
-  if(act==='ix-add'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.ixs=e.ixs||[];const ix={id:uid(),trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'0.6',delay:'0',easing:'ease-out',link:'',memo:'',actual:'',done:false,params:{}};e.ixs.push(ix);openIxPanels.add(t.dataset.eid);editingIx.add(ix.id);save();render();return;}
+  if(act==='toggle-ix-panel'){const eid=t.dataset.eid;const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,eid);if(!e)return;e.ixs=e.ixs||[];if(e.ixs.length===0){const ix={id:uid(),trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'',delay:'',easing:'',link:'',memo:'',actual:'',done:false,params:{}};e.ixs.push(ix);openIxPanels.add(eid);editingIx.add(ix.id);save();render();return;}if(openIxPanels.has(eid))openIxPanels.delete(eid);else openIxPanels.add(eid);render();return;}
+  if(act==='ix-add'){const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.ixs=e.ixs||[];const ix={id:uid(),trigger:'스크롤 진입',action:'페이드인',device:'둘다',duration:'',delay:'',easing:'',link:'',memo:'',actual:'',done:false,params:{}};e.ixs.push(ix);openIxPanels.add(t.dataset.eid);editingIx.add(ix.id);save();render();return;}
   if(act==='ix-edit'){editingIx.add(t.dataset.iid);render();return;}
   if(act==='ix-register'){editingIx.delete(t.dataset.iid);save();render();return;}
   if(act==='ix-delete'){confirmDialog('이 인터랙션을 삭제할까요?',()=>{const p=findPage(t.dataset.pid),s=findSection(p,t.dataset.sid),e=findElem(s,t.dataset.eid);if(!e)return;e.ixs=(e.ixs||[]).filter(ix=>ix.id!==t.dataset.iid);editingIx.delete(t.dataset.iid);save();render();});return;}
