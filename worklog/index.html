@@ -49,14 +49,6 @@
 
   h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
 
-  .month-nav { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
-  .month-nav button {
-    background: none; border: none; cursor: pointer; padding: 4px 8px;
-    color: var(--muted); font-size: 16px; border-radius: 6px;
-  }
-  .month-nav button:hover { background: var(--primary-soft); color: var(--primary); }
-  .month-nav span { font-weight: 600; color: var(--text); min-width: 70px; text-align: center; }
-
   .card {
     background: var(--card);
     border-radius: 16px;
@@ -311,11 +303,6 @@
 <div class="container">
   <header>
     <h1>추가근무 기록</h1>
-    <div class="month-nav">
-      <button id="prevMonth">‹</button>
-      <span id="currentMonth"></span>
-      <button id="nextMonth">›</button>
-    </div>
   </header>
 
   <div id="configWarn" class="config-warn" style="display:none;">
@@ -338,15 +325,15 @@
   <div class="card">
     <div class="summary-grid">
       <div class="summary-item">
-        <div class="summary-label">이번 달 적립</div>
+        <div class="summary-label">전체 적립</div>
         <div><span class="summary-value" id="sumEarn">0</span><span class="summary-unit">시간</span></div>
       </div>
       <div class="summary-item">
-        <div class="summary-label">이번 달 사용</div>
+        <div class="summary-label">전체 사용</div>
         <div><span class="summary-value use" id="sumUse">0</span><span class="summary-unit">시간</span></div>
       </div>
       <div class="summary-item">
-        <div class="summary-label">누적 잔여</div>
+        <div class="summary-label">잔여</div>
         <div><span class="summary-value balance" id="sumBalance">0</span><span class="summary-unit">시간</span></div>
       </div>
     </div>
@@ -466,7 +453,6 @@ const DB_PATH = "overtimeLog";
 let db, dataRef;
 let records = {}; // {id: {date, start, end, overtimeMinutes, receipt}}
 let activeSession = null; // {start: ISO string} — 진행 중 세션
-let viewMonth = new Date(); // 현재 보고 있는 달
 let timerInterval = null;
 let editingReceiptId = null;
 
@@ -837,16 +823,10 @@ function loadExcelJS() {
 
 async function exportToExcel() {
   const btn = document.getElementById('exportBtn');
-  const y = viewMonth.getFullYear();
-  const m = viewMonth.getMonth();
 
-  const monthRecords = Object.entries(records)
+  const allRecords = Object.entries(records)
     .map(([id, r]) => ({ id, ...r }))
-    .filter(r => {
-      if (!r.date) return false;
-      const [yy, mm] = r.date.split('-').map(Number);
-      return yy === y && (mm - 1) === m;
-    })
+    .filter(r => !!r.date)
     .sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       const at = a.start ? new Date(a.start).getTime() : (a.createdAt || 0);
@@ -854,8 +834,8 @@ async function exportToExcel() {
       return at - bt;
     });
 
-  if (monthRecords.length === 0) {
-    alert('이 달에 내보낼 기록이 없습니다.');
+  if (allRecords.length === 0) {
+    alert('내보낼 기록이 없습니다.');
     return;
   }
 
@@ -866,7 +846,7 @@ async function exportToExcel() {
   try {
     const ExcelJS = await loadExcelJS();
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet(`${y}-${String(m+1).padStart(2,'0')}`);
+    const sheet = workbook.addWorksheet('전체');
 
     sheet.columns = [
       { header: '날짜', key: 'date', width: 12 },
@@ -884,10 +864,10 @@ async function exportToExcel() {
     headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
     headerRow.height = 22;
 
-    let monthEarnMins = 0;
-    let monthUseMins = 0;
+    let totalEarnMins = 0;
+    let totalUseMins = 0;
 
-    for (const r of monthRecords) {
+    for (const r of allRecords) {
       if (recordType(r) === 'use') {
         const dayObj = new Date(r.date + 'T00:00:00');
         const row = sheet.addRow({
@@ -901,7 +881,7 @@ async function exportToExcel() {
           memo: r.memo || '',
         });
         row.alignment = { vertical: 'middle', horizontal: 'center' };
-        monthUseMins += r.usedMinutes || 0;
+        totalUseMins += r.usedMinutes || 0;
       } else {
         const row = sheet.addRow({
           date: r.date,
@@ -914,7 +894,7 @@ async function exportToExcel() {
           memo: '',
         });
         row.alignment = { vertical: 'middle', horizontal: 'center' };
-        monthEarnMins += r.overtimeMinutes || 0;
+        totalEarnMins += r.overtimeMinutes || 0;
 
         if (r.receipt) {
           try {
@@ -935,20 +915,12 @@ async function exportToExcel() {
       }
     }
 
-    // 누적 잔여 (전체 기간)
-    const allList = Object.values(records);
-    const allEarn = allList
-      .filter(r => recordType(r) === 'earn')
-      .reduce((s, r) => s + (r.overtimeMinutes || 0), 0);
-    const allUse = allList
-      .filter(r => recordType(r) === 'use')
-      .reduce((s, r) => s + (r.usedMinutes || 0), 0);
-    const balance = allEarn - allUse;
+    const balance = totalEarnMins - totalUseMins;
 
     sheet.addRow({});
-    const earnRow = sheet.addRow({ date: '이번 달 적립', duration: fmtDuration(monthEarnMins) });
-    const useRow = sheet.addRow({ date: '이번 달 사용', duration: `−${fmtDuration(monthUseMins)}` });
-    const balRow = sheet.addRow({ date: '누적 잔여', duration: fmtDuration(balance) });
+    const earnRow = sheet.addRow({ date: '전체 적립', duration: fmtDuration(totalEarnMins) });
+    const useRow = sheet.addRow({ date: '전체 사용', duration: `−${fmtDuration(totalUseMins)}` });
+    const balRow = sheet.addRow({ date: '잔여', duration: fmtDuration(balance) });
     [earnRow, useRow, balRow].forEach(r => {
       r.font = { bold: true };
       r.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -959,7 +931,9 @@ async function exportToExcel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `추가근무_${y}-${String(m+1).padStart(2,'0')}.xlsx`;
+    const today = new Date();
+    const stamp = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    a.download = `추가근무_전체_${stamp}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -976,18 +950,6 @@ async function exportToExcel() {
 document.getElementById('exportBtn').addEventListener('click', exportToExcel);
 
 // ───────────────────────────────────────────
-// 월 이동
-// ───────────────────────────────────────────
-document.getElementById("prevMonth").addEventListener("click", () => {
-  viewMonth.setMonth(viewMonth.getMonth() - 1);
-  render();
-});
-document.getElementById("nextMonth").addEventListener("click", () => {
-  viewMonth.setMonth(viewMonth.getMonth() + 1);
-  render();
-});
-
-// ───────────────────────────────────────────
 // 렌더
 // ───────────────────────────────────────────
 function recordType(r) {
@@ -995,53 +957,34 @@ function recordType(r) {
 }
 
 function render() {
-  const y = viewMonth.getFullYear();
-  const m = viewMonth.getMonth();
-  document.getElementById("currentMonth").textContent = `${y}.${String(m+1).padStart(2,'0')}`;
-
-  // 이번 달 기록만 필터 (적립/사용 모두 포함)
-  const monthRecords = Object.entries(records)
+  const allRecords = Object.entries(records)
     .map(([id, r]) => ({ id, ...r }))
-    .filter(r => {
-      if (!r.date) return false;
-      const [yy, mm] = r.date.split('-').map(Number);
-      return yy === y && (mm - 1) === m;
-    });
+    .filter(r => !!r.date);
 
-  // 이번 달 합계
-  const monthEarnMins = monthRecords
+  const totalEarnMins = allRecords
     .filter(r => recordType(r) === 'earn')
     .reduce((sum, r) => sum + (r.overtimeMinutes || 0), 0);
-  const monthUseMins = monthRecords
+  const totalUseMins = allRecords
     .filter(r => recordType(r) === 'use')
     .reduce((sum, r) => sum + (r.usedMinutes || 0), 0);
-  const totalReceipts = monthRecords.filter(r => r.receipt).length;
+  const balanceMins = totalEarnMins - totalUseMins;
+  const totalReceipts = allRecords.filter(r => r.receipt).length;
 
-  // 누적 잔여 (전체 기간)
-  const allList = Object.values(records);
-  const allEarnMins = allList
-    .filter(r => recordType(r) === 'earn')
-    .reduce((sum, r) => sum + (r.overtimeMinutes || 0), 0);
-  const allUseMins = allList
-    .filter(r => recordType(r) === 'use')
-    .reduce((sum, r) => sum + (r.usedMinutes || 0), 0);
-  const balanceMins = allEarnMins - allUseMins;
-
-  document.getElementById("sumEarn").textContent = (monthEarnMins / 60).toFixed(1);
-  document.getElementById("sumUse").textContent = (monthUseMins / 60).toFixed(1);
+  document.getElementById("sumEarn").textContent = (totalEarnMins / 60).toFixed(1);
+  document.getElementById("sumUse").textContent = (totalUseMins / 60).toFixed(1);
   document.getElementById("sumBalance").textContent = (balanceMins / 60).toFixed(1);
   document.getElementById("sumReceipts").textContent = totalReceipts;
 
   // 로그 리스트
   const list = document.getElementById("logList");
-  if (monthRecords.length === 0) {
-    list.innerHTML = '<div class="log-empty">이 달에 기록된 내역이 없습니다.</div>';
+  if (allRecords.length === 0) {
+    list.innerHTML = '<div class="log-empty">기록된 내역이 없습니다.</div>';
     return;
   }
 
   // 날짜별 그룹핑 후 같은 날 내에서는 시작 시간(없으면 createdAt) 내림차순
   const byDate = {};
-  monthRecords.forEach(r => {
+  allRecords.forEach(r => {
     if (!byDate[r.date]) byDate[r.date] = [];
     byDate[r.date].push(r);
   });
