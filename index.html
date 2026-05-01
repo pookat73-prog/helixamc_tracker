@@ -333,7 +333,7 @@
       <button data-view="interactions"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>인터랙션 모아보기</button>
       <button data-view="settings"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>설정</button>
     </nav>
-    <a id="live-shortcut" class="live-shortcut" href="https://helixanimalmedicalcenter.webflow.io/" target="_blank" rel="noopener noreferrer" title="헬릭스 LIVE 사이트 새 탭에서 열기 (시크릿창에서 보려면 우클릭 → '시크릿 창에서 링크 열기')">
+    <a id="live-shortcut" class="live-shortcut" href="https://helixanimalmedicalcenter.webflow.io/" target="helixLive" rel="noopener noreferrer" title="헬릭스 LIVE 사이트 새 탭에서 열기 · 처음 연 창/탭을 재사용 (시크릿창은 우클릭 → '시크릿 창에서 링크 열기')">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       헬릭스 LIVE
       <span class="ext">↗</span>
@@ -733,7 +733,7 @@ function renderPagesList(){
         <div class="page-card-actions" data-act="card-noop">
           <select class="priority-select ${PRIORITY_CLS[pri]}" data-act="set-page-priority" data-id="${p.id}" title="우선순위">${PRIORITIES.map(pr=>`<option value="${pr}" ${pri===pr?'selected':''}>${pr}</option>`).join('')}</select>
           <button class="btn-icon" data-act="dup-page" data-id="${p.id}" title="복제">⎘</button>
-          ${pageLiveUrl(p)?`<a class="btn-icon" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="_blank" rel="noopener noreferrer" title="라이브 사이트 열기 (우클릭 → 시크릿 창)" style="text-decoration:none">🔗</a>`:''}
+          ${pageLiveUrl(p)?`<a class="btn-icon" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="helixLive" rel="noopener noreferrer" title="라이브 사이트 열기 · 처음 연 탭 재사용 (우클릭 → 시크릿 창)" style="text-decoration:none">🔗</a>`:''}
           <span class="spacer" data-act="card-noop"></span>
           <div class="reorder">
             <button data-act="move-page-up" data-id="${p.id}" ${isFirst?'disabled':''} title="위로">▲</button>
@@ -763,7 +763,7 @@ function renderPageDetail(p){
       </div>
       <div class="meta-row" style="margin-top:6px">
         <label>라이브 슬러그</label><input data-act="edit-page-slug" data-id="${p.id}" value="${esc(p.slug||'')}" placeholder="heldongmedisenteo" style="flex:1;min-width:160px;font-family:'SF Mono',Menlo,monospace;font-size:12px"/>
-        ${pageLiveUrl(p)?`<a class="btn btn-soft btn-sm" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="_blank" rel="noopener noreferrer" title="새 탭에서 열기 · 우클릭 → 시크릿 창에서 링크 열기" style="text-decoration:none">🔗 라이브 ↗</a>`:''}
+        ${pageLiveUrl(p)?`<a class="btn btn-soft btn-sm" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="helixLive" rel="noopener noreferrer" title="새 탭에서 열기 · 처음 연 탭을 재사용 · 우클릭 → 시크릿 창" style="text-decoration:none">🔗 라이브 ↗</a>`:''}
       </div>
     </div>
     <div style="text-align:right"><div style="font-size:24px;font-weight:700">${c.pct}%</div><div class="muted small">${c.done}/${c.total}</div><div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-soft btn-sm" data-act="dup-page" data-id="${p.id}">⎘ 복제</button><button class="btn btn-danger btn-sm" data-act="del-page" data-id="${p.id}">삭제</button></div></div>
@@ -974,7 +974,7 @@ function renderOverview(){
             <a class="ov-page-name${p.name?'':' empty'}" data-act="open-page" data-id="${p.id}">${p.name?esc(p.name):'(이름 없음)'}</a>
             ${p.abbr?`<span class="page-card-abbr">${esc(p.abbr.toUpperCase())}</span>`:''}
             <span class="release-tag ${p.release?'':'empty'}">${esc(p.release||'미지정')}</span>
-            ${pageLiveUrl(p)?`<a class="btn btn-soft btn-sm" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="_blank" rel="noopener noreferrer" title="라이브 사이트 열기 (우클릭 → 시크릿 창)" style="text-decoration:none">🔗 라이브 ↗</a>`:''}
+            ${pageLiveUrl(p)?`<a class="btn btn-soft btn-sm" data-act="card-noop" href="${esc(pageLiveUrl(p))}" target="helixLive" rel="noopener noreferrer" title="라이브 사이트 열기 · 처음 연 탭 재사용 (우클릭 → 시크릿 창)" style="text-decoration:none">🔗 라이브 ↗</a>`:''}
             ${mPub?`<span class="published-badge" title="모바일 발행 완료">✅ 발행</span>`:''}
             ${pageFlags.map(f=>`<span class="flag ${FLAG_CLS[f]}" title="${esc(FLAG_DEFS[f])}">${f}</span>`).join('')}
           </div>
