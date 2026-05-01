@@ -469,6 +469,7 @@ let activeSession = null; // {start: ISO string} — 진행 중 세션
 let viewMonth = new Date(); // 현재 보고 있는 달
 let timerInterval = null;
 let editingReceiptId = null;
+let initialJumpDone = false; // 첫 로드 시 기록 있는 달로 자동 이동했는지
 
 const ACTIVE_KEY = "overtimeLog_active";
 
@@ -484,6 +485,10 @@ try {
 
   onValue(dataRef, (snap) => {
     records = snap.val() || {};
+    if (!initialJumpDone) {
+      initialJumpDone = true;
+      jumpToLatestRecordMonthIfEmpty();
+    }
     render();
   });
 } catch (e) {
@@ -992,6 +997,28 @@ document.getElementById("nextMonth").addEventListener("click", () => {
 // ───────────────────────────────────────────
 function recordType(r) {
   return r.type === 'use' ? 'use' : 'earn';
+}
+
+// 현재 보고 있는 달에 기록이 없고 다른 달에 기록이 있으면,
+// 기록이 있는 가장 최근 달로 자동 이동
+function jumpToLatestRecordMonthIfEmpty() {
+  const y = viewMonth.getFullYear();
+  const m = viewMonth.getMonth();
+  let hasInCurrent = false;
+  let latestKey = null; // 'YYYY-MM'
+  for (const r of Object.values(records)) {
+    if (!r || !r.date) continue;
+    const [yy, mm] = r.date.split('-').map(Number);
+    if (yy === y && (mm - 1) === m) {
+      hasInCurrent = true;
+      break;
+    }
+    const key = r.date.slice(0, 7);
+    if (!latestKey || key > latestKey) latestKey = key;
+  }
+  if (hasInCurrent || !latestKey) return;
+  const [yy, mm] = latestKey.split('-').map(Number);
+  viewMonth = new Date(yy, mm - 1, 1);
 }
 
 function render() {
