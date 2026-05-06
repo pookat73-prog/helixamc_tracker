@@ -608,6 +608,13 @@ function render(){
   bindEvents();
 }
 
+const PROJECT_START_DATE='2025-08-01';
+function elapsedSinceStart(){
+  const start=new Date(PROJECT_START_DATE);start.setHours(0,0,0,0);
+  const today=new Date();today.setHours(0,0,0,0);
+  const days=Math.floor((today-start)/86400000);
+  return{days,start};
+}
 function renderDDay(){
   const dates=state.meta.dates||{};
   let h='';
@@ -616,6 +623,10 @@ function renderDDay(){
     if(d) h+=`<div class="dday-box"><div class="lbl">${esc(st)}</div><div class="val ${d.past?'dday-past':'dday-num'}">${d.text}</div></div>`;
   });
   if(!h) h=`<div class="dday-box"><div class="lbl">D-Day 미설정</div><div class="val small muted" style="font-size:12px">설정에서 추가</div></div>`;
+  const el=elapsedSinceStart();
+  if(el.days>=0){
+    h+=`<div class="dday-box"><div class="lbl">제작 시작일 (${PROJECT_START_DATE})</div><div class="val dday-num">+${el.days}일째</div></div>`;
+  }
   return h;
 }
 
