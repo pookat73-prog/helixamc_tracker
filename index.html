@@ -608,6 +608,19 @@ function render(){
   bindEvents();
 }
 
+const PROJECT_START_DATE='2025-08-01';
+function elapsedSinceStart(){
+  const start=new Date(PROJECT_START_DATE);start.setHours(0,0,0,0);
+  const today=new Date();today.setHours(0,0,0,0);
+  const totalDays=Math.floor((today-start)/86400000);
+  let months=(today.getFullYear()-start.getFullYear())*12+(today.getMonth()-start.getMonth());
+  const anchor=new Date(start);anchor.setMonth(start.getMonth()+months);
+  if(today<anchor){months--;anchor.setMonth(anchor.getMonth()-1);}
+  const restDays=Math.floor((today-anchor)/86400000);
+  const weeks=Math.floor(restDays/7);
+  const days=restDays-weeks*7;
+  return{totalDays,months,weeks,days};
+}
 function renderDDay(){
   const dates=state.meta.dates||{};
   let h='';
@@ -616,6 +629,14 @@ function renderDDay(){
     if(d) h+=`<div class="dday-box"><div class="lbl">${esc(st)}</div><div class="val ${d.past?'dday-past':'dday-num'}">${d.text}</div></div>`;
   });
   if(!h) h=`<div class="dday-box"><div class="lbl">D-Day 미설정</div><div class="val small muted" style="font-size:12px">설정에서 추가</div></div>`;
+  const el=elapsedSinceStart();
+  if(el.totalDays>=0){
+    const parts=[];
+    if(el.months>0)parts.push(`${el.months}개월`);
+    if(el.weeks>0)parts.push(`${el.weeks}주`);
+    if(el.days>0||parts.length===0)parts.push(`${el.days}일`);
+    h+=`<div class="dday-box"><div class="lbl">제작 시작일 (${PROJECT_START_DATE})</div><div class="val dday-num">${parts.join(' ')} 째</div><div class="lbl" style="margin-top:4px">총 ${el.totalDays}일</div></div>`;
+  }
   return h;
 }
 
